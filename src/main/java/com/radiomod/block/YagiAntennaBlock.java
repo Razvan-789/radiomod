@@ -5,6 +5,7 @@ import com.radiomod.blockentity.DrmRadioBlockEntity;
 import com.radiomod.blockentity.Dx3ReceiverBlockEntity;
 import com.radiomod.blockentity.YagiAntennaBlockEntity;
 import com.radiomod.blockentity.WebserverBlockEntity;
+import com.radiomod.blockentity.AdsbReceiverBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -67,6 +68,8 @@ public class YagiAntennaBlock extends AntennaBlock {
                     && pos.equals(receiver.getAntennaPos())) receiver.setAntennaPos(null);
             else if (linked != null && level.getBlockEntity(linked) instanceof WebserverBlockEntity webserver
                     && pos.equals(webserver.antennaPos())) webserver.setAntennaPos(null);
+            else if (linked != null && level.getBlockEntity(linked) instanceof AdsbReceiverBlockEntity receiver
+                    && pos.equals(receiver.getAntennaPos())) receiver.setAntennaPos(null);
         }
         super.onRemove(state, level, pos, next, moved);
     }

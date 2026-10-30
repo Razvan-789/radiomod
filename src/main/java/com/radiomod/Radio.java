@@ -3,12 +3,17 @@ package com.radiomod;
 import com.mojang.logging.LogUtils;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.radiomod.block.AntennaBlock;
+import net.minecraft.world.InteractionHand;
 import com.radiomod.block.LoopAntennaBlock;
 import com.radiomod.block.DrmTransmitterBlock;
 import com.radiomod.block.DrmRadioBlock;
 import com.radiomod.block.DirectionalAntennaBlock;
 import com.radiomod.block.YagiAntennaBlock;
 import com.radiomod.block.WebserverBlock;
+import com.radiomod.block.AdsbReceiverBlock;
+import com.radiomod.block.AdsbServerBlock;
+import com.radiomod.block.VorTransmitterBlock;
+import com.radiomod.block.DmeModuleBlock;
 import com.radiomod.block.DabServerBlock;
 import com.radiomod.block.DabTransmitterBlock;
 import com.radiomod.block.TransmitterBlock;
@@ -21,6 +26,9 @@ import com.radiomod.blockentity.DrmRadioBlockEntity;
 import com.radiomod.blockentity.DirectionalAntennaBlockEntity;
 import com.radiomod.blockentity.YagiAntennaBlockEntity;
 import com.radiomod.blockentity.WebserverBlockEntity;
+import com.radiomod.blockentity.AdsbReceiverBlockEntity;
+import com.radiomod.blockentity.AdsbServerBlockEntity;
+import com.radiomod.blockentity.VorTransmitterBlockEntity;
 import com.radiomod.blockentity.DabServerBlockEntity;
 import com.radiomod.blockentity.DabServerBlockEntity.DabStationDefinition;
 import com.radiomod.blockentity.DabTransmitterBlockEntity;
@@ -35,6 +43,8 @@ import com.radiomod.item.DigitalRadioItem;
 import com.radiomod.item.Dx3RadioItem;
 import com.radiomod.item.TechnisatRadioItem;
 import com.radiomod.item.LinkingToolItem;
+import com.radiomod.item.AdsbTransponderItem;
+import com.radiomod.item.NavigatorItem;
 import com.radiomod.item.RadioItem;
 import com.radiomod.item.SignalMeterItem;
 import com.radiomod.item.MeteorForecasterItem;
@@ -62,6 +72,18 @@ import com.radiomod.server.AudioLibraryManager;
 import com.radiomod.block.RecorderBlock;
 import com.radiomod.menu.RecorderMenu;
 import com.radiomod.menu.DirectionalAntennaMenu;
+import com.radiomod.menu.AdsbRadarMenu;
+import com.radiomod.menu.AdsbTransponderMenu;
+import com.radiomod.menu.NavigatorMenu;
+import com.radiomod.menu.VorTransmitterMenu;
+import com.radiomod.network.SetAdsbTransponderPayload;
+import com.radiomod.network.SyncAdsbRadarPayload;
+import com.radiomod.network.SyncAdsbTabletPayload;
+import com.radiomod.network.SyncNavigatorPayload;
+import com.radiomod.network.NavigatorActionPayload;
+import com.radiomod.network.SyncVorPayload;
+import com.radiomod.network.SyncNavigatorHudPayload;
+import com.radiomod.network.SetVorPayload;
 import com.radiomod.network.SyncFmReceptionPayload;
 import com.radiomod.network.SyncDx3CatalogPayload;
 import com.radiomod.network.SyncDx3PlayerPayload;
@@ -93,6 +115,7 @@ import com.radiomod.signal.MeteorScatter;
 import com.radiomod.signal.Dx3ReceiverNetwork;
 import com.radiomod.signal.Dx3ReceiverCatalog;
 import com.radiomod.signal.DrmReception;
+import com.radiomod.signal.VorReception;
 import com.radiomod.server.ServerAudioProxy;
 import com.radiomod.server.AudioRelayManager;
 import com.radiomod.item.RegistryItem;
@@ -230,6 +253,18 @@ public class Radio {
     public static final DeferredBlock<Block> WEBSERVER_BLOCK = BLOCKS.register("webserver",
             () -> new WebserverBlock(BlockBehaviour.Properties.of().strength(3.0F).requiresCorrectToolForDrops()));
     public static final DeferredItem<BlockItem> WEBSERVER_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("webserver", WEBSERVER_BLOCK);
+    public static final DeferredBlock<Block> ADSB_RECEIVER_BLOCK = BLOCKS.register("adsb_receiver",
+            () -> new AdsbReceiverBlock(BlockBehaviour.Properties.of().strength(3.0F).requiresCorrectToolForDrops()));
+    public static final DeferredItem<BlockItem> ADSB_RECEIVER_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("adsb_receiver", ADSB_RECEIVER_BLOCK);
+    public static final DeferredBlock<Block> ADSB_SERVER_BLOCK = BLOCKS.register("adsb_server",
+            () -> new AdsbServerBlock(BlockBehaviour.Properties.of().strength(3.0F).requiresCorrectToolForDrops()));
+    public static final DeferredItem<BlockItem> ADSB_SERVER_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("adsb_server", ADSB_SERVER_BLOCK);
+    public static final DeferredBlock<Block> VOR_TRANSMITTER_BLOCK = BLOCKS.register("vor_transmitter",
+            () -> new VorTransmitterBlock(BlockBehaviour.Properties.of().strength(3.0F).requiresCorrectToolForDrops()));
+    public static final DeferredItem<BlockItem> VOR_TRANSMITTER_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("vor_transmitter", VOR_TRANSMITTER_BLOCK);
+    public static final DeferredBlock<Block> DME_MODULE_BLOCK = BLOCKS.register("dme_module",
+            () -> new DmeModuleBlock(BlockBehaviour.Properties.of().strength(2.5F).requiresCorrectToolForDrops()));
+    public static final DeferredItem<BlockItem> DME_MODULE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("dme_module", DME_MODULE_BLOCK);
 
     public static final DeferredItem<Item> RADIO_ITEM = ITEMS.register("radio", () -> new RadioItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> DIGITAL_RADIO_ITEM = ITEMS.register("digital_radio", () -> new DigitalRadioItem(new Item.Properties().stacksTo(1)));
@@ -243,6 +278,10 @@ public class Radio {
     public static final DeferredItem<Item> REGISTRY_ITEM = ITEMS.register("registry", () -> new RegistryItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> WEB_TABLET_ITEM = ITEMS.register("web_tablet",
             () -> new WebTabletItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<Item> ADSB_TRANSPONDER_ITEM = ITEMS.register("adsb_transponder",
+            () -> new AdsbTransponderItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<Item> NAVIGATOR_ITEM = ITEMS.register("navigator",
+            () -> new NavigatorItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> METEOR_FORECASTER_ITEM = ITEMS.register("meteor_forecaster", () -> new MeteorForecasterItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> LINKING_TOOL_ITEM = ITEMS.register("linking_tool", () -> new LinkingToolItem(new Item.Properties().stacksTo(1)));
 
@@ -275,6 +314,15 @@ public class Radio {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WebserverBlockEntity>> WEBSERVER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register("webserver", () -> BlockEntityType.Builder.of(
                     WebserverBlockEntity::new, WEBSERVER_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdsbReceiverBlockEntity>> ADSB_RECEIVER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("adsb_receiver", () -> BlockEntityType.Builder.of(
+                    AdsbReceiverBlockEntity::new, ADSB_RECEIVER_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdsbServerBlockEntity>> ADSB_SERVER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("adsb_server", () -> BlockEntityType.Builder.of(
+                    AdsbServerBlockEntity::new, ADSB_SERVER_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VorTransmitterBlockEntity>> VOR_TRANSMITTER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("vor_transmitter", () -> BlockEntityType.Builder.of(
+                    VorTransmitterBlockEntity::new, VOR_TRANSMITTER_BLOCK.get()).build(null));
 
     public static final DeferredHolder<MenuType<?>, MenuType<RadioMenu>> RADIO_MENU =
             MENUS.register("radio", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new RadioMenu(containerId, inventory)));
@@ -301,6 +349,20 @@ public class Radio {
     public static final DeferredHolder<MenuType<?>, MenuType<WebTabletMenu>> WEBSERVER_MENU =
             MENUS.register("webserver", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
                     new WebTabletMenu(id, inventory, buffer.readBlockPos())));
+    public static final DeferredHolder<MenuType<?>, MenuType<AdsbRadarMenu>> ADSB_RADAR_MENU =
+            MENUS.register("adsb_receiver", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
+                    new AdsbRadarMenu(id, inventory, buffer.readBlockPos())));
+    public static final DeferredHolder<MenuType<?>, MenuType<AdsbTransponderMenu>> ADSB_TRANSPONDER_MENU =
+            MENUS.register("adsb_transponder", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
+                    new AdsbTransponderMenu(id, inventory,
+                            buffer.readBoolean() ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND,
+                            buffer.readUtf(24), buffer.readUtf(32))));
+    public static final DeferredHolder<MenuType<?>, MenuType<NavigatorMenu>> NAVIGATOR_MENU =
+            MENUS.register("navigator", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
+                    new NavigatorMenu(id, inventory, buffer.readBoolean() ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND)));
+    public static final DeferredHolder<MenuType<?>, MenuType<VorTransmitterMenu>> VOR_TRANSMITTER_MENU =
+            MENUS.register("vor_transmitter", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
+                    new VorTransmitterMenu(id, inventory, buffer.readBlockPos())));
     public static final DeferredHolder<MenuType<?>, MenuType<TransmitterMenu>> TRANSMITTER_MENU =
             MENUS.register("transmitter", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new TransmitterMenu(containerId, inventory)));
     public static final DeferredHolder<MenuType<?>, MenuType<DabTransmitterMenu>> DAB_TRANSMITTER_MENU =
@@ -334,6 +396,8 @@ public class Radio {
                 output.accept(SIGNAL_METER_ITEM.get());
                 output.accept(REGISTRY_ITEM.get());
                 output.accept(WEB_TABLET_ITEM.get());
+                output.accept(ADSB_TRANSPONDER_ITEM.get());
+                output.accept(NAVIGATOR_ITEM.get());
                 output.accept(METEOR_FORECASTER_ITEM.get());
                 output.accept(LINKING_TOOL_ITEM.get());
                 output.accept(TRANSMITTER_BLOCK_ITEM.get());
@@ -352,6 +416,10 @@ public class Radio {
                 output.accept(YAGI_7_ITEM.get());
                 output.accept(YAGI_11_ITEM.get());
                 output.accept(WEBSERVER_BLOCK_ITEM.get());
+                output.accept(ADSB_RECEIVER_BLOCK_ITEM.get());
+                output.accept(ADSB_SERVER_BLOCK_ITEM.get());
+                output.accept(VOR_TRANSMITTER_BLOCK_ITEM.get());
+                output.accept(DME_MODULE_BLOCK_ITEM.get());
             }).build());
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
@@ -370,6 +438,8 @@ public class Radio {
         // Note that this is necessary if and only if we want *this* class (Radio) to respond directly to events.
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.addListener(com.radiomod.signal.AdsbReception::onChunkLoad);
+        NeoForge.EVENT_BUS.addListener(com.radiomod.signal.AdsbReception::onChunkUnload);
         NeoForge.EVENT_BUS.addListener(TransmitterPresets::onPlayerClone);
 
         // Register the item to a creative tab
@@ -381,6 +451,50 @@ public class Radio {
 
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToClient(SyncNavigatorHudPayload.TYPE, SyncNavigatorHudPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        com.radiomod.signal.NavigatorHudState.set(payload)));
+        registrar.playToClient(SyncNavigatorPayload.TYPE, SyncNavigatorPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player().containerMenu instanceof NavigatorMenu menu
+                            && menu.containerId == payload.containerId()) menu.setSnapshot(payload);
+                }));
+        registrar.playToServer(NavigatorActionPayload.TYPE, NavigatorActionPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player
+                            && player.containerMenu instanceof NavigatorMenu menu
+                            && menu.containerId == payload.containerId())
+                        menu.setFrequency(player, payload.channel(), payload.frequencyKhz());
+                }));
+        registrar.playToClient(SyncVorPayload.TYPE, SyncVorPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player().containerMenu instanceof VorTransmitterMenu menu
+                            && menu.containerId == payload.containerId()) menu.setSnapshot(payload);
+                }));
+        registrar.playToServer(SetVorPayload.TYPE, SetVorPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player
+                            && player.containerMenu instanceof VorTransmitterMenu menu
+                            && menu.containerId == payload.containerId())
+                        menu.configure(player, payload.frequencyKhz(), payload.identifier());
+                }));
+        registrar.playToServer(SetAdsbTransponderPayload.TYPE, SetAdsbTransponderPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player
+                            && player.containerMenu instanceof AdsbTransponderMenu menu
+                            && menu.containerId == payload.containerId())
+                        menu.configure(player, payload.identifier(), payload.operator());
+                }));
+        registrar.playToClient(SyncAdsbRadarPayload.TYPE, SyncAdsbRadarPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player().containerMenu instanceof AdsbRadarMenu menu
+                            && menu.containerId == payload.containerId()) menu.setSnapshot(payload);
+                }));
+        registrar.playToClient(SyncAdsbTabletPayload.TYPE, SyncAdsbTabletPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player().containerMenu instanceof WebTabletMenu menu
+                            && menu.containerId == payload.containerId()) menu.setAdsbSnapshot(payload);
+                }));
         registrar.playToServer(WebTabletActionPayload.TYPE, WebTabletActionPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player
@@ -641,6 +755,8 @@ public class Radio {
             event.accept(YAGI_7_ITEM);
             event.accept(YAGI_11_ITEM);
             event.accept(WEBSERVER_BLOCK_ITEM);
+            event.accept(ADSB_RECEIVER_BLOCK_ITEM);
+            event.accept(ADSB_SERVER_BLOCK_ITEM);
         }
 
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
@@ -650,6 +766,7 @@ public class Radio {
             event.accept(DX3_RADIO_ITEM);
             event.accept(SIGNAL_METER_ITEM);
             event.accept(LINKING_TOOL_ITEM);
+            event.accept(ADSB_TRANSPONDER_ITEM);
         }
     }
 
@@ -702,6 +819,16 @@ public class Radio {
             return;
         }
         AudioUploadManager.prune(serverPlayer);
+        if (player.tickCount % 10 == 0) {
+            ItemStack navigator = NavigatorItem.pinnedInInventory(serverPlayer);
+            if (!navigator.isEmpty()) {
+                int first = NavigatorItem.frequency(navigator, 1);
+                int second = NavigatorItem.frequency(navigator, 2);
+                PacketDistributor.sendToPlayer(serverPlayer, SyncNavigatorHudPayload.sample(first, second,
+                        VorReception.receive(serverPlayer.serverLevel(), serverPlayer.position(), first),
+                        VorReception.receive(serverPlayer.serverLevel(), serverPlayer.position(), second)));
+            }
+        }
 
         if (player.tickCount % 20 == 0) {
             for (BlockPos pos : Dx3ReceiverNetwork.get(player.level())) {

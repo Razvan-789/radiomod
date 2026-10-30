@@ -15,16 +15,27 @@ import com.radiomod.client.screen.TransmitterScreen;
 import com.radiomod.client.screen.SignalMeterScreen;
 import com.radiomod.client.screen.RegistryScreen;
 import com.radiomod.client.screen.WebTabletScreen;
+import com.radiomod.client.screen.AdsbRadarScreen;
+import com.radiomod.client.screen.AdsbTransponderScreen;
+import com.radiomod.client.screen.NavigatorScreen;
+import com.radiomod.client.screen.VorTransmitterScreen;
 import com.radiomod.menu.RegistryMenu;
 import com.radiomod.menu.WebTabletMenu;
+import com.radiomod.menu.AdsbRadarMenu;
+import com.radiomod.menu.AdsbTransponderMenu;
+import com.radiomod.menu.NavigatorMenu;
+import com.radiomod.menu.VorTransmitterMenu;
 import com.radiomod.client.FmAudioManager;
 import com.radiomod.client.PlacedReceiverAudioManager;
 import com.radiomod.item.RadioItem;
 import com.radiomod.item.TechnisatRadioItem;
 import com.radiomod.item.PortableDrmRadioItem;
+import com.radiomod.item.NavigatorItem;
 import com.radiomod.signal.PortableDrmState;
 import com.radiomod.signal.TechnisatPinnedState;
 import com.radiomod.network.SyncPortableDrmPayload;
+import com.radiomod.network.SyncNavigatorHudPayload;
+import com.radiomod.signal.NavigatorHudState;
 import com.radiomod.network.SyncTechnisatReceiverHudPayload;
 import com.radiomod.signal.FmReceptionState;
 import com.radiomod.signal.Dx3PlayerState;
@@ -82,6 +93,10 @@ public class RadioClient {
         event.<RegistryMenu, RegistryScreen>register(Radio.REGISTRY_MENU.get(), RegistryScreen::new);
         event.<WebTabletMenu, WebTabletScreen>register(Radio.WEB_TABLET_MENU.get(), WebTabletScreen::new);
         event.<WebTabletMenu, WebTabletScreen>register(Radio.WEBSERVER_MENU.get(), WebTabletScreen::new);
+        event.<AdsbRadarMenu, AdsbRadarScreen>register(Radio.ADSB_RADAR_MENU.get(), AdsbRadarScreen::new);
+        event.<AdsbTransponderMenu, AdsbTransponderScreen>register(Radio.ADSB_TRANSPONDER_MENU.get(), AdsbTransponderScreen::new);
+        event.<NavigatorMenu, NavigatorScreen>register(Radio.NAVIGATOR_MENU.get(), NavigatorScreen::new);
+        event.<VorTransmitterMenu, VorTransmitterScreen>register(Radio.VOR_TRANSMITTER_MENU.get(), VorTransmitterScreen::new);
         event.register(Radio.TRANSMITTER_MENU.get(), TransmitterScreen::new);
         event.register(Radio.DAB_TRANSMITTER_MENU.get(), DabTransmitterScreen::new);
         event.register(Radio.DRM_TRANSMITTER_MENU.get(), DrmTransmitterScreen::new);
@@ -97,6 +112,7 @@ public class RadioClient {
         Minecraft minecraft = Minecraft.getInstance();
         if (pinnedLevel != minecraft.level) {
             TechnisatPinnedState.clear();
+            NavigatorHudState.clear();
             pinnedLevel = minecraft.level;
         }
         if (minecraft.isPaused()) {
@@ -110,15 +126,17 @@ public class RadioClient {
     static void onRenderHud(RenderGuiEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
+        int nextY = 8;
         if (player != null) {
-            renderMeterHud(event.getGuiGraphics(), minecraft, player);
+            nextY = renderMeterHud(event.getGuiGraphics(), minecraft, player, nextY);
+            nextY = renderNavigatorHud(event.getGuiGraphics(), minecraft, player, nextY);
             if (TechnisatPinnedState.hasPinned())
-                renderTechnisatReceiverHud(event.getGuiGraphics(), minecraft);
+                nextY = renderTechnisatReceiverHud(event.getGuiGraphics(), minecraft, nextY);
         }
         if (player != null && PortableDrmRadioItem.isSelected(player)
                 && PortableDrmRadioItem.hasInInventory(player)) {
             if (PortableDrmRadioItem.pinned(player))
-                renderPortableDrmHud(event.getGuiGraphics(), minecraft, player);
+                renderPortableDrmHud(event.getGuiGraphics(), minecraft, player, false, nextY);
             return;
         }
         if (player == null || !hasRadioInInventory(player)) {
@@ -127,8 +145,8 @@ public class RadioClient {
 
         if (RadioItem.isDx3Pinned(player) && RadioItem.isDx3Selected(player)) {
             if (RadioItem.isTechnisatSelected(player) && RadioItem.getMode(player) == RadioItem.MODE_DRM)
-                renderPortableDrmHud(event.getGuiGraphics(), minecraft, player, true);
-            else renderDx3Hud(event.getGuiGraphics(), minecraft, player);
+                renderPortableDrmHud(event.getGuiGraphics(), minecraft, player, true, nextY);
+            else renderDx3Hud(event.getGuiGraphics(), minecraft, player, nextY);
             return;
         }
         if (!RadioItem.isHudPinned(player)) {
@@ -158,7 +176,7 @@ public class RadioClient {
         int width = textWidth + (padding * 2);
         int height = (lineHeight * 2) + (padding * 2) + 2;
         int x = guiGraphics.guiWidth() - width - 8;
-        int y = 8;
+        int y = nextY;
 
         guiGraphics.fill(x, y, x + width, y + height, 0xC0101018);
         guiGraphics.fill(x, y, x + width, y + 1, 0xFF0CA8E2);
@@ -174,18 +192,42 @@ public class RadioClient {
         );
     }
 
-    private static void renderMeterHud(GuiGraphics g, Minecraft minecraft, Player player) {
-        if (!SignalMeterState.hasMeter(player)) return;
+    private static int renderNavigatorHud(GuiGraphics g, Minecraft minecraft, Player player, int y) {
+        var navigator = NavigatorItem.pinnedInInventory(player);
+        if (navigator.isEmpty()) return y;
+        SyncNavigatorHudPayload state = NavigatorHudState.fresh();
+        int first = NavigatorItem.frequency(navigator, 1), second = NavigatorItem.frequency(navigator, 2);
+        if (state != null && (state.frequency1Khz() != first || state.frequency2Khz() != second)) state = null;
+        int width = Math.min(272, g.guiWidth() - 16), x = g.guiWidth() - width - 8;
+        g.fill(x, y, x + width, y + 57, 0xE4162936);
+        g.fill(x, y, x + width, y + 2, 0xFF74DCF6);
+        g.drawString(minecraft.font, "NAVIGATOR · VOR", x + 6, y + 5, 0xFF74DCF6, false);
+        drawNavigatorHudLine(g, minecraft, x + 6, y + 20, width - 12, 1, first, state == null ? null : state.vor1());
+        drawNavigatorHudLine(g, minecraft, x + 6, y + 36, width - 12, 2, second, state == null ? null : state.vor2());
+        return y + 57 + 6;
+    }
+    private static void drawNavigatorHudLine(GuiGraphics g, Minecraft minecraft, int x, int y, int width,
+                                             int channel, int khz, SyncNavigatorHudPayload.Fix fix) {
+        String prefix = String.format(Locale.ROOT, "V%d %.2f  ", channel, khz / 1000.0);
+        String detail = fix == null ? "Unavailable"
+                : fix.identifier() + " " + String.format(Locale.ROOT, "%03d° %.0f dB", fix.radialDegrees(), fix.snrDb())
+                + (fix.dme() ? String.format(Locale.ROOT, "  DME %.0f blocks", fix.dmeBlocks()) : "");
+        g.drawString(minecraft.font, minecraft.font.plainSubstrByWidth(prefix + detail, width),
+                x, y, fix == null ? 0xFFFFAE76 : 0xFFEAF5FF, false);
+    }
+
+    private static int renderMeterHud(GuiGraphics g, Minecraft minecraft, Player player, int y) {
+        if (!SignalMeterState.hasMeter(player)) return y;
         SyncSignalMeterPayload p = SignalMeterState.freshClient();
-        if (p == null || !p.pinned()) return;
-        int x = 8, y = 8, width = Math.min(260, g.guiWidth() - 16);
+        if (p == null || !p.pinned()) return y;
+        int width = Math.min(260, g.guiWidth() - 16), x = g.guiWidth() - width - 8;
         int height = p.dab() ? 72 : 62;
         g.fill(x, y, x + width, y + height, 0xE410212A);
         g.fill(x, y, x + width, y + 2, 0xFF51C6C1);
         String tune = p.dab() ? "DAB " + com.radiomod.signal.DabChannel.byIndex(p.channelIndex()).label()
                 : String.format(Locale.ROOT, "FM %.2f MHz", p.frequencyKhz() / 1000.0);
         g.drawString(minecraft.font, "METER  " + tune + (p.active() ? "" : "  NO SIGNAL"), x + 7, y + 7, 0xFF82E4DB, false);
-        if (!p.active()) return;
+        if (!p.active()) return y + height + 6;
         g.drawString(minecraft.font, String.format(Locale.ROOT, "SIG %.1f dBuV   SNR %.1f dB",
                 p.signalTenths() / 10.0, p.snrTenths() / 10.0), x + 7, y + 23, 0xFFF1F8F8, false);
         if (p.dab()) {
@@ -198,11 +240,12 @@ public class RadioClient {
                     + (p.pi().isBlank() ? "----" : p.pi()) + "  GRP "
                     + (p.currentGroup().isBlank() ? "--" : p.currentGroup()), x + 7, y + 37, 0xFFD4E8EB, false);
         }
+        return y + height + 6;
     }
 
-    private static void renderTechnisatReceiverHud(GuiGraphics g, Minecraft minecraft) {
+    private static int renderTechnisatReceiverHud(GuiGraphics g, Minecraft minecraft, int y) {
         SyncTechnisatReceiverHudPayload info = TechnisatPinnedState.fresh();
-        int width = Math.min(270, g.guiWidth() - 16), x = 8, y = 84;
+        int width = Math.min(270, g.guiWidth() - 16), x = g.guiWidth() - width - 8;
         g.fill(x, y, x + width, y + 64, 0xE4081530);
         g.fill(x, y, x + width, y + 2, 0xFF2873D0);
         String band = info == null ? "RADIO" : info.mode() == RadioItem.MODE_DAB ? "DAB+"
@@ -210,7 +253,7 @@ public class RadioClient {
         g.drawString(minecraft.font, "TechniSat  " + band, x + 7, y + 7, 0xFFDCEAFF, false);
         if (info == null || !info.active()) {
             g.drawString(minecraft.font, "Signal unavailable", x + 7, y + 25, 0xFF9FB3D1, false);
-            return;
+            return y + 64 + 6;
         }
         String frequency = info.mode() == RadioItem.MODE_FM
                 ? String.format(Locale.ROOT, "%.2f MHz", info.frequencyKhz() / 1000.0)
@@ -222,18 +265,15 @@ public class RadioClient {
                 x + 7, y + 37, 0xFFB8C9E4, false);
         g.drawString(minecraft.font, (info.rds() ? "RDS  " : "") + frequency
                 + (info.ct() ? "  " + info.time() : ""), x + 7, y + 51, 0xFF83ABDC, false);
-    }
-
-    private static void renderPortableDrmHud(GuiGraphics g, Minecraft minecraft, Player player) {
-        renderPortableDrmHud(g, minecraft, player, false);
+        return y + 64 + 6;
     }
 
     private static void renderPortableDrmHud(GuiGraphics g, Minecraft minecraft, Player player,
-                                             boolean technisat) {
+                                             boolean technisat, int y) {
         SyncPortableDrmPayload info = PortableDrmState.fresh();
         int frequency = technisat ? TechnisatRadioItem.drmFrequency(player) : PortableDrmRadioItem.frequency(player);
         boolean active = info != null && info.active() && info.frequencyKhz() == frequency;
-        int width = Math.min(270, g.guiWidth() - 16), x = g.guiWidth() - width - 8, y = 8;
+        int width = Math.min(270, g.guiWidth() - 16), x = g.guiWidth() - width - 8;
         g.fill(x, y, x + width, y + 72, 0xE4122028);
         g.fill(x, y, x + width, y + 2, 0xFF6DDAD1);
         g.drawString(minecraft.font, (technisat ? "TechniSat DRM  " : "DRM  ")
@@ -258,7 +298,7 @@ public class RadioClient {
         return state == 2 ? "OK" : state == 1 ? "ERR" : "LOST";
     }
 
-    private static void renderDx3Hud(GuiGraphics graphics, Minecraft minecraft, Player player) {
+    private static void renderDx3Hud(GuiGraphics graphics, Minecraft minecraft, Player player, int y) {
         SyncDx3PlayerPayload info = Dx3PlayerState.getFresh();
         boolean dab = RadioItem.getMode(player) == RadioItem.MODE_DAB;
         boolean active = info != null && info.active();
@@ -271,7 +311,6 @@ public class RadioClient {
         int width = Math.min(280, graphics.guiWidth() - 16);
         int height = 70;
         int x = graphics.guiWidth() - width - 8;
-        int y = 8;
         graphics.fill(x, y, x + width, y + height, 0xDB142530);
         graphics.fill(x, y, x + width, y + 2, 0xFF70C2DC);
         graphics.drawString(minecraft.font,

@@ -6,6 +6,7 @@ import com.radiomod.blockentity.DrmRadioBlockEntity;
 import com.radiomod.blockentity.Dx3ReceiverBlockEntity;
 import com.radiomod.blockentity.YagiAntennaBlockEntity;
 import com.radiomod.blockentity.WebserverBlockEntity;
+import com.radiomod.blockentity.AdsbReceiverBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
@@ -42,7 +43,8 @@ public final class SignalMath {
                 && endpointPos.equals(antenna.getLinkedTransmitterPos())
                 && (level.getBlockEntity(endpointPos) instanceof Dx3ReceiverBlockEntity
                     || level.getBlockEntity(endpointPos) instanceof DrmRadioBlockEntity
-                    || level.getBlockEntity(endpointPos) instanceof WebserverBlockEntity))
+                    || level.getBlockEntity(endpointPos) instanceof WebserverBlockEntity
+                    || level.getBlockEntity(endpointPos) instanceof AdsbReceiverBlockEntity))
             return antenna.gainToward(otherEnd);
         return 0.0;
     }

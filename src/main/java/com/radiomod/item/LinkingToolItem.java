@@ -10,6 +10,9 @@ import com.radiomod.blockentity.DrmRadioBlockEntity;
 import com.radiomod.blockentity.LoopAntennaBlockEntity;
 import com.radiomod.blockentity.YagiAntennaBlockEntity;
 import com.radiomod.blockentity.WebserverBlockEntity;
+import com.radiomod.blockentity.AdsbReceiverBlockEntity;
+import com.radiomod.blockentity.AdsbServerBlockEntity;
+import com.radiomod.blockentity.VorTransmitterBlockEntity;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +29,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 public class LinkingToolItem extends Item {
     private static final Map<UUID, BlockPos> SELECTED_ANTENNA_POSITIONS = new HashMap<>();
     private static final Map<UUID, GlobalPos> SELECTED_DAB_SERVERS = new HashMap<>();
+    private static final Map<UUID, GlobalPos> SELECTED_ADSB_RECEIVERS = new HashMap<>();
 
     public LinkingToolItem(Properties properties) {
         super(properties);
@@ -47,6 +51,7 @@ public class LinkingToolItem extends Item {
             SELECTED_DAB_SERVERS.put(player.getUUID(), GlobalPos.of(context.getLevel().dimension(),
                     context.getClickedPos().immutable()));
             SELECTED_ANTENNA_POSITIONS.remove(player.getUUID());
+            SELECTED_ADSB_RECEIVERS.remove(player.getUUID());
             player.displayClientMessage(Component.translatable("message.radio.linking_tool.server_selected",
                     context.getClickedPos().toShortString()).withStyle(ChatFormatting.YELLOW), true);
             return InteractionResult.CONSUME;
@@ -54,6 +59,7 @@ public class LinkingToolItem extends Item {
         if (blockEntity instanceof AntennaBlockEntity) {
             SELECTED_ANTENNA_POSITIONS.put(player.getUUID(), context.getClickedPos().immutable());
             SELECTED_DAB_SERVERS.remove(player.getUUID());
+            SELECTED_ADSB_RECEIVERS.remove(player.getUUID());
             player.displayClientMessage(
                     Component.translatable("message.radio.linking_tool.antenna_selected", context.getClickedPos().toShortString())
                             .withStyle(ChatFormatting.YELLOW),
@@ -89,6 +95,74 @@ public class LinkingToolItem extends Item {
             SELECTED_ANTENNA_POSITIONS.remove(player.getUUID());
             player.displayClientMessage(Component.translatable("message.radio.linking_tool.linked",
                     antennaPos.toShortString(), receiver.getBlockPos().toShortString())
+                    .withStyle(ChatFormatting.GREEN), true);
+            return InteractionResult.CONSUME;
+        }
+
+        if (blockEntity instanceof AdsbReceiverBlockEntity receiver) {
+            BlockPos antennaPos = SELECTED_ANTENNA_POSITIONS.get(player.getUUID());
+            if (antennaPos == null) {
+                SELECTED_ADSB_RECEIVERS.put(player.getUUID(), GlobalPos.of(context.getLevel().dimension(),
+                        receiver.getBlockPos().immutable()));
+                SELECTED_DAB_SERVERS.remove(player.getUUID());
+                player.displayClientMessage(Component.literal("ADS-B receiver selected at "
+                        + receiver.getBlockPos().toShortString() + "; click an ADS-B server")
+                        .withStyle(ChatFormatting.YELLOW), true);
+                return InteractionResult.CONSUME;
+            }
+            if (!(context.getLevel().getBlockEntity(antennaPos) instanceof AntennaBlockEntity antenna)) {
+                SELECTED_ANTENNA_POSITIONS.remove(player.getUUID());
+                player.displayClientMessage(Component.literal("Selected antenna is missing").withStyle(ChatFormatting.RED), true);
+                return InteractionResult.CONSUME;
+            }
+            if (receiver.getAntennaPos() != null
+                    && context.getLevel().getBlockEntity(receiver.getAntennaPos()) instanceof AntennaBlockEntity old)
+                old.setLinkedTransmitterPos(null);
+            if (antenna.getLinkedTransmitterPos() != null)
+                clearAntennaFromAnyTransmitter(context, antenna.getLinkedTransmitterPos());
+            receiver.setAntennaPos(antennaPos);
+            antenna.setLinkedTransmitterPos(receiver.getBlockPos());
+            SELECTED_ANTENNA_POSITIONS.remove(player.getUUID());
+            player.displayClientMessage(Component.translatable("message.radio.linking_tool.linked",
+                    antennaPos.toShortString(), receiver.getBlockPos().toShortString())
+                    .withStyle(ChatFormatting.GREEN), true);
+            return InteractionResult.CONSUME;
+        }
+
+        if (blockEntity instanceof AdsbServerBlockEntity server) {
+            GlobalPos selected = SELECTED_ADSB_RECEIVERS.get(player.getUUID());
+            if (selected == null || !selected.dimension().equals(context.getLevel().dimension())
+                    || !(context.getLevel().getBlockEntity(selected.pos()) instanceof AdsbReceiverBlockEntity)) {
+                player.displayClientMessage(Component.literal("Select a loaded ADS-B receiver in this dimension first")
+                        .withStyle(ChatFormatting.RED), true);
+                return InteractionResult.CONSUME;
+            }
+            server.setReceiverPos(selected.pos());
+            SELECTED_ADSB_RECEIVERS.remove(player.getUUID());
+            player.displayClientMessage(Component.literal("ADS-B server linked to receiver at "
+                    + selected.pos().toShortString()).withStyle(ChatFormatting.GREEN), true);
+            return InteractionResult.CONSUME;
+        }
+
+        if (blockEntity instanceof VorTransmitterBlockEntity vor) {
+            BlockPos antennaPos = SELECTED_ANTENNA_POSITIONS.get(player.getUUID());
+            if (antennaPos == null || !(context.getLevel().getBlockEntity(antennaPos) instanceof AntennaBlockEntity antenna)
+                    || antenna instanceof LoopAntennaBlockEntity
+                    || antenna instanceof com.radiomod.blockentity.DirectionalAntennaBlockEntity
+                    || antenna instanceof YagiAntennaBlockEntity) {
+                player.displayClientMessage(Component.literal("Select a regular antenna first")
+                        .withStyle(ChatFormatting.RED), true);
+                return InteractionResult.CONSUME;
+            }
+            if (vor.antennaPos() != null
+                    && context.getLevel().getBlockEntity(vor.antennaPos()) instanceof AntennaBlockEntity old)
+                old.setLinkedTransmitterPos(null);
+            if (antenna.getLinkedTransmitterPos() != null)
+                clearAntennaFromAnyTransmitter(context, antenna.getLinkedTransmitterPos());
+            vor.setAntennaPos(antennaPos);
+            antenna.setLinkedTransmitterPos(vor.getBlockPos());
+            SELECTED_ANTENNA_POSITIONS.remove(player.getUUID());
+            player.displayClientMessage(Component.literal("VOR linked to antenna at " + antennaPos.toShortString())
                     .withStyle(ChatFormatting.GREEN), true);
             return InteractionResult.CONSUME;
         }
@@ -269,6 +343,10 @@ public class LinkingToolItem extends Item {
             receiver.setAntennaPos(null);
         } else if (be instanceof WebserverBlockEntity webserver) {
             webserver.setAntennaPos(null);
+        } else if (be instanceof AdsbReceiverBlockEntity receiver) {
+            receiver.setAntennaPos(null);
+        } else if (be instanceof VorTransmitterBlockEntity vor) {
+            vor.setAntennaPos(null);
         }
     }
 }

@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "attached=false": {"model": "radio:block/dme_module"},
+    "attached=true": {"model": "radio:block/dme_module_attached"}
+  }
+}

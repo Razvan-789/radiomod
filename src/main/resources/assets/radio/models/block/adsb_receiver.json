@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "radio:block/adsb_receiver_front",
+    "down": "minecraft:block/polished_deepslate",
+    "up": "minecraft:block/polished_deepslate",
+    "north": "radio:block/adsb_receiver_front",
+    "south": "minecraft:block/polished_deepslate",
+    "east": "minecraft:block/polished_deepslate",
+    "west": "minecraft:block/polished_deepslate"
+  }
+}
