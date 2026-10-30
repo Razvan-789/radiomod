@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "radio:block/recorder" },
+    "facing=east": { "model": "radio:block/recorder", "y": 90 },
+    "facing=south": { "model": "radio:block/recorder", "y": 180 },
+    "facing=west": { "model": "radio:block/recorder", "y": 270 }
+  }
+}

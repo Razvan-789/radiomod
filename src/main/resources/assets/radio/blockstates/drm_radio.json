@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"radio:block/drm_radio"},"facing=east":{"model":"radio:block/drm_radio","y":90},"facing=south":{"model":"radio:block/drm_radio","y":180},"facing=west":{"model":"radio:block/drm_radio","y":270}}}

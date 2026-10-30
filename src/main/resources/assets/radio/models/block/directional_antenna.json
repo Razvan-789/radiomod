@@ -1,0 +1,34 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "minecraft:block/iron_block",
+    "metal": "minecraft:block/iron_block",
+    "panel": "minecraft:block/light_blue_concrete"
+  },
+  "elements": [
+    {
+      "from": [6, 0, 6], "to": [10, 2, 10],
+      "faces": {
+        "north": { "texture": "#metal" }, "south": { "texture": "#metal" },
+        "east": { "texture": "#metal" }, "west": { "texture": "#metal" },
+        "up": { "texture": "#metal" }, "down": { "texture": "#metal" }
+      }
+    },
+    {
+      "from": [7, 2, 7], "to": [9, 15, 9],
+      "faces": {
+        "north": { "texture": "#metal" }, "south": { "texture": "#metal" },
+        "east": { "texture": "#metal" }, "west": { "texture": "#metal" },
+        "up": { "texture": "#metal" }
+      }
+    },
+    {
+      "from": [3, 11, 5], "to": [13, 15, 7],
+      "faces": {
+        "north": { "texture": "#panel" }, "south": { "texture": "#metal" },
+        "east": { "texture": "#metal" }, "west": { "texture": "#metal" },
+        "up": { "texture": "#metal" }, "down": { "texture": "#metal" }
+      }
+    }
+  ]
+}

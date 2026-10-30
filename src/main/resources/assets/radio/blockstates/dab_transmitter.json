@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "radio:block/dab_transmitter" },
+    "facing=east": { "model": "radio:block/dab_transmitter", "y": 90 },
+    "facing=south": { "model": "radio:block/dab_transmitter", "y": 180 },
+    "facing=west": { "model": "radio:block/dab_transmitter", "y": 270 }
+  }
+}

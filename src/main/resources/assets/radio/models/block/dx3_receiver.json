@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "radio:block/dx3_receiver_front",
+    "side": "radio:block/dx3_receiver_side",
+    "top": "radio:block/dx3_receiver_top"
+  }
+}

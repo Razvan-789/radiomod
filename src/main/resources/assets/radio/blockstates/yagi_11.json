@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "radio:block/yagi_11",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "radio:block/yagi_11",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "radio:block/yagi_11",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "radio:block/yagi_11",
+      "y": 270
+    }
+  }
+}
