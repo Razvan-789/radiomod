@@ -1,143 +1,201 @@
 # Radio+
 
-Radio+ **1.2.0** is a NeoForge mod for Minecraft 1.21.1 that adds FM, DAB/DAB+, and DRM transmitters, radios, antennas, and configurable stations. Reception depends on transmitter power, distance, tuning, antenna connection, direction, height, blocks above the listener, and whether the listener is underwater.
+![Radio+ pixel-art logo](src/main/resources/radio_logo.png)
 
-## Requirements and installation
+Radio+ **1.2.0** adds FM, DAB/DAB+, and DRM radio systems, plus ADS-B tracking and VOR navigation, to Minecraft **1.21.1** with NeoForge. Stations are placed in the world, and reception changes with distance, antennas, height, and terrain.
 
-- Minecraft **1.21.1** with NeoForge **21.1.229 or newer** for that Minecraft version.
-- Java **21** to build or run the mod.
-- Install the built mod JAR on the server and on every client that connects to it. For single player, install it on the client.
-- An audio stream URL is needed to hear a station. See [Audio streams and multiplayer](#audio-streams-and-multiplayer) for FFmpeg and network requirements.
+## Install and get started
 
-This repository currently has no crafting recipes. In a test world, get the items and blocks from the **Radio+** creative tab or with `/give` using the `radio` namespace.
+- Use **Minecraft 1.21.1**, **NeoForge 21.1.229 or newer** for that version, and **Java 21**. Install the mod JAR on the server and every connecting client; for single player, install it on the client.
+- There are currently no crafting recipes. Get equipment from the **Radio+** creative tab or with `/give @s radio:<item_id>`.
+- To make your first FM station, place an **FM Transmitter**, set its frequency, power, and audio URL, then link an **Antenna** with the **Linking Tool**. Right-click a handheld **Radio** and tune to the same frequency.
+- To make a DAB station, create a service on a **DAB Server**, select that server and MUX in a **DAB Transmitter**, then link an antenna.
+- Placed receivers play for nearby players; portable radios play for the player carrying them. Pinned displays stack at the top right of the HUD.
 
-## Getting started
+## Tools and station management
 
-Pinned radio, signal meter, Navigator, and receiver displays stack in the **top-right corner** of the HUD when several are active.
+### Linking Tool (`radio:linking_tool`)
 
-### FM
+Select an antenna, then right-click a compatible transmitter or receiver to link them. The tool also connects an **ADS-B Receiver** to an **ADS-B Server**. A physical antenna has one active link at a time; linking it elsewhere moves the connection. DAB transmitters select their server and MUX in their own screen.
 
-1. Place an **FM Transmitter** and right-click it. Set its frequency in kHz, power in watts, and stream URL. The default frequency is **101700 kHz (101.7 MHz)**. Use **RDS Config** to set the station name and other RDS data.
-2. Place an **Antenna**. With the **Linking Tool**, right-click the antenna, then right-click the FM transmitter. One antenna links to one transmitter; linking it again moves the connection.
-3. Right-click a **Radio**, **Deepelec DP-666**, or **DX3 Radio** and tune to a station. The DP-666 is available with a light frame or a black frame and dark display; both work the same way. The radio must stay in the player's inventory for audio to continue after closing the screen. Use **MUTE** on the standard radio or DX3, or **POWER** on the DP-666, to stop playback.
+### Recorder (`radio:recorder`)
 
-The Deepelec DP-666 has a numeric keypad for direct tuning. Enter a frequency in tenths of a MHz from `650` to `1080` (for example, `894` tunes 89.4 MHz and `1017` tunes 101.7 MHz). The digits appear below the frequency and the radio tunes automatically when the entry is in range. **X** closes the radio screen; Backspace removes an unfinished digit. **STEP** cycles through 0.1, 0.5, and 1.0 MHz tuning steps and **SEEK**; **+** and **−** tune using the selected step. The standard Radio has direct frequency entry and FM/DAB tabs. **AF** can retune to a stronger FM frequency when the RDS AF list and matching PI code are available. **PIN** keeps an FM status HUD visible. The DP-666 receives FM only. The FM band spans **65–108 MHz**, covering OIRT, the Japanese FM band, and the usual FM band.
+Place and open it to upload, rename, delete, and inspect your personal audio files. Its storage meter shows your remaining quota. Files can be loaded from FM or DRM transmitters and from DAB stations on the DAB Server.
 
-On either DP-666 display, the **RDS** indicator appears while RDS is being decoded at a BER of 98% or lower. FM PS and RadioText fill in over received RDS segments; a higher BER makes decoding take longer and may leave temporary gaps. The clock appears only after the tuned station's 4A clock data has been decoded.
+Each upload may be at most **128 MiB** and **2 hours** long. Supported inputs include MP3, WAV, OGG, Opus, FLAC, AAC, M4A, and MP4; the server validates audio duration with FFmpeg. Each player has a separate library in each world. The default quota is **512 MiB per player**, configurable with `maxAudioStorageMiB` in `config/radio-common.toml` (128–16384 MiB). Files are stored in the world's `radio_uploads/` directory.
 
-The **DX3 Radio** shows receivable services as a station list. Use the **FM**, **DAB**, or **FM + DAB** tab, scroll through the list with the mouse wheel or arrow buttons, and click a station to play it. **SORT** cycles through Frequency, Name, and Group (FM first, DAB second). Name and Group sort FM stations by the first eight-character frame of their configured PS, so the list order stays fixed while Dynamic PS continues to change the visible name. The row beneath each station name shows its PTY: decoded RDS PTY for FM, or the configured DAB PTY. FM entries use their RDS station name when available; DAB entries show station names and MOT logos from the linked DAB server. Services with the same decoded FM PI or DAB SID are grouped by identifier; a listed FM service with a PI matching a DAB SID borrows that service's small MOT logo in the list only. The **PLAYER** tab shows a larger MOT logo for DAB, the selected DAB MUX name, configured bitrate and codec, and RT or DLS text; DLS can come from fixed text or a URL that refreshes every five seconds. **PIN** keeps the selected FM or DAB station name, RT or DLS text, and signal bars visible after closing the radio, with a small MOT logo for DAB. If reception stops, the pinned display stays visible and says **FM Signal Lost** or **DAB Unavailable**. A DAB entry plays its own selected service, even when multiple services share one MUX.
+### Transmitter Registry (`radio:registry`)
 
-The DX3 **PREF** button cycles through **Prefer DAB**, **Prefer FM**, **Balanced**, and **Prefer audio quality**. Linked FM frequencies share a PI code, linked DAB ensembles share a SID, and an FM PI matching a DAB SID links the two bands. Prefer DAB uses FM only when the linked DAB service is unavailable; Prefer FM does the reverse. Balanced moves to DAB when FM SNR falls below 12 dB and DAB reception is healthy, and returns to FM when DAB approaches its decoding threshold and FM SNR is at least 16 dB. Prefer audio quality chooses DAB over available FM only above **72 kbps DAB+** or **128 kbps DAB**; if FM is unavailable, it can still use a lower bitrate DAB service. The radio uses a small signal margin when changing FM frequencies or DAB ensembles to avoid frequent retuning.
+Browse loaded FM, DAB, DAB+, and DRM transmitters across dimensions. The list includes mode, frequency, coordinates, power, programme, and audio source; each DAB service appears separately with its MUX. Sort by type, frequency, name, country, or power. Search by name, PI, or SID and combine mode, frequency, and power filters. The **Countries** tab assigns names to the first hexadecimal digit of FM PI and DAB service SID codes for the whole world; unassigned codes show **Unknown**.
 
-### Placed DX3 receiver
+### Signal Meter (`radio:signal_meter`)
 
-Place the **DX3 Receiver** block and right-click it to open the same station list and player panels as the handheld DX3, including the stable Dynamic PS name sort and DAB codec and bitrate display. The selected station and **PREF** mode belong to the block, so every player hears the same FM or DAB service. **MUTE** silences its speaker for everyone without clearing its station information. Use the Linking Tool on an antenna and then on the receiver to connect it. The receiver measures reception at the linked antenna; without one it has a **22 dB signal penalty**, so only stronger stations appear. An antenna can be linked to one transmitter or receiver at a time.
+Measure FM or DAB without playing audio. Tune FM by frequency or step through DAB channels; **PIN** keeps the technical display on the HUD. FM shows signal strength, SNR, estimated RDS BER, PI, PS, and decoded RDS groups. DAB shows the MUX, protection setting, FIC/MSC/frame-sync estimates, service list, and TII levels. In an SFN, the strongest TII signal is **0.0 dB** and others are relative to it.
 
-The receiver acts as a world speaker: players within **32 blocks** hear its selected stream, with volume falling as they move away. Its volume follows Minecraft's **Records/Jukebox** and master sound settings. Each nearby client decodes the server-selected stream; the receiver continues playing after its UI closes and does not require players to carry a radio. Like the handheld DX3, DAB services use the server audio proxy when available. Its station selection, mute state, antenna link, and preference are saved with the block.
+### Meteor Forecaster (`radio:meteor_forecaster`)
 
-### Directional antenna
+Right-click to see the current meteor-scatter rate and upcoming or active FM openings. `/meteorscatter` shows the same status in chat. An admin (permission level 2) can set `/meteorscatter rate <meteors_per_hour>` to **20–1200** meteors per real hour, or **0** for a random rate each Minecraft night. Openings occur only at night, last **1–10 seconds**, and can briefly lift distant FM signals to **0–25 dBµV**.
 
-Link a **Directional Antenna** with the Linking Tool just like a regular antenna: select the antenna, then right-click an FM transmitter, DAB transmitter, DRM transmitter, or DX3 Receiver. Right-click the antenna without the tool to edit its eight compass sectors. Each click shifts up to **3 dB** of gain into or out of the selected direction; increasing one sector reduces gain in the three sectors around its opposite direction. Sector gains stay between **−24 and +8 dB**, and the total gain budget stays balanced. Signal gain blends smoothly between neighboring sector directions as the receiver moves. **360° is the same sector as 0°**. Angles are world directions: 0° east, 90° south, 180° west, and 270° north. Gains change FM, DAB, and DRM reception in the direction of the other end of the radio path and are saved with the antenna. All sectors start at 0 dB.
+## Antennas
 
-### Yagi receiving antennas
+### Antenna (`radio:antenna`)
 
-The **3-, 5-, 7-, and 11-element Yagi Antennas** connect with the Linking Tool to a placed **DX3 Receiver**, **TechniSat Receiver**, **DRM Radio**, or **FM-DX Webserver**. Place one facing north, east, south, or west; right-click it without the tool to turn it clockwise. It boosts signals arriving from the direction it points and attenuates signals from the sides and rear. Forward gain is **+5, +7, +9, or +12 dB** respectively; more elements give a narrower beam. These antennas are receive only and cannot be connected to transmitters. A DRM Radio can use either a loop or a Yagi antenna.
+The general-purpose antenna links to a transmitter or placed receiver. A VOR Transmitter must use this regular antenna. Antennas improve reception or provide the transmitter's broadcast point.
 
-### FM-DX webservers and tablet
+### Directional Antenna (`radio:directional_antenna`)
 
-Place an **FM-DX Webserver**, then use the Linking Tool on a regular, directional, or Yagi antenna and on the webserver. Right-click the block to set its location name, HTTP(S) background image URL, and six-digit RGB theme color. Its configured name, appearance, tuning, and antenna link persist with the block. Webserver chunks stay loaded so the **Tablet** can list online webservers and their dimensions and coordinates from anywhere. Select one to open a remote FM-DX style receiver. Every viewer of the same webserver shares its FM/DRM mode and frequency; changing either on one tablet updates the others. The tablet can play the selected audio privately while its screen is open.
+Link it like a regular antenna, then right-click it without the Linking Tool to edit its eight compass sectors. Gain ranges from **−24 to +8 dB** per sector; improving one direction reduces gain in opposing directions. The signal blends smoothly as a receiver moves between sectors. Angles are world directions: **0° east, 90° south, 180° west, 270° north**; 360° equals 0°.
 
-FM tuning covers **65.000–108.000 MHz** in 0.1 MHz steps; DRM covers **0.150–30.000 MHz** in 0.001 MHz steps. Reception is calculated at the linked antenna, including its directional gain. The screen shows frequency, gradually decoded PS and RadioText, signal strength, SNR, estimated RDS BER, and a 60-second signal history. Live reception refreshes five times per second; the graph records one value per second. Received signal varies smoothly by up to ±2 dBµV, which also changes the reported SNR and RDS BER. With no receivable station, the signal readout and graph show the local noise floor. FM playback mixes static into weak stations and plays static alone on an empty frequency; DRM remains silent when it cannot decode. Use **AF** to open a frequency-sorted list of decoded alternative frequencies from RDS group 0A. FM transmitter identity, coordinates, power, bearing, distance, PI country, and a matching DAB MOT logo are revealed only after the webserver has decoded PI and part of PS. Country names use the mappings in the Transmitter Registry. DRM shows its service labels and text; DRM has no RDS PI or PS. Without an antenna, reception has a 22 dB penalty. The theme color also tints the receiver panels, and background images use a higher-resolution texture.
+### Loop Antenna (`radio:loop_antenna`)
 
-### ADS-B transponders and radar
+A receive-only antenna for a placed **DRM Radio**. Link the loop to that radio with the Linking Tool; it does not broadcast and cannot serve other receivers.
 
-Right-click an **ADS-B Transponder** in your hand to set its identifier and operator and see its current heading and speed. It broadcasts its carrier's position, altitude, heading, and speed while held by a player, stored in an entity or loaded block container, or dropped in the world. Modded entities and block containers with item-handler inventories are supported. Heading is in degrees clockwise from north; speed is in km/h using the configured mod distance scale. Place an **ADS-B Receiver** and use the Linking Tool to connect any antenna. Open the receiver for a radar view of contacts in the same dimension; select a contact to see its identifier, operator, carrier coordinates, altitude, heading, speed, distance, and received SNR. The radar range button cycles through **5, 10, 25, 70, 140, and 280 mod km**. Contacts update every half second. The carrier or container chunk must be loaded to broadcast.
+### 3-Element Yagi (`radio:yagi_3`)
 
-Place an **ADS-B Server** and link it to an ADS-B Receiver in the same dimension: click the receiver with the Linking Tool to select it, then click the server. The server and its linked receiver stay loaded. Open the **Tablet** and select **ADS-B** to see one shared network map with contacts received by **all linked servers** in the selected dimension. If several servers hear the same transponder, the network uses the strongest received signal. A receiver's own radar uses the same reception rules as its linked servers, so a server cannot add a contact that its receiver radar would miss. Use the dimension button to switch between dimensions with servers. Drag the coordinate grid to move it; scroll over it to zoom, or use the zoom button. The grid spans **1–280 mod km** from its center and labels world X/Z coordinates in blocks. It marks received ADS-B transponders, ADS-B servers, and VOR transmitters in the selected dimension with distinct colors; hover over a marker for details. The contact list shows heading, speed, altitude, and signal details. Map positions use the server distance scale. Contacts still require a loaded transponder carrier or container and a linked receiver and antenna. Use **RADIO** to return to the tablet's FM/DRM webserver mode.
+A receive-only directional antenna with **+5 dB** forward gain. Place it facing the desired direction and right-click it to rotate.
 
-ADS-B server placement affects its contribution to the network. From **Y=64 to Y=320**, height adds up to **30 mod km** to the linked receiver's contact range; the bonus is capped above Y=320. Occluding blocks above the server reduce both range and SNR, so an underground server has weaker reception. The receiver's antenna direction and obstruction still apply.
+### 5-Element Yagi (`radio:yagi_5`)
 
-### Navigator and VOR-DME
+A receive-only directional antenna with **+7 dB** forward gain and a narrower beam than the 3-element model.
 
-Right-click the **Navigator** to open its three tabs. **ADS-B** plots nearby, decodable ADS-B transponders on a **280 mod km** radar and lists their identifiers, operators, distance, heading, and speed. The radar also plots the two tuned VORs when they have attached DME modules (yellow for VOR 1, purple for VOR 2). **VOR 1 / VOR 2** has two independently tuned frequencies, saved on the Navigator item, and shows each decoded identifier, radial (degrees clockwise from north), signal SNR, and transmitter position. When a DME is attached, it shows the slant distance in **blocks** to the VOR block, both in the Navigator and on the pinned HUD. Press **PIN VOR** to keep both tuned VOR readings on the HUD after closing the Navigator; press **UNPIN VOR** to remove them. The HUD shows an unavailable status when a tuned signal is lost. **VOR Registry** lists every loaded VOR transmitter across dimensions with its identifier, frequency, coordinates, DME status, and antenna status.
+### 7-Element Yagi (`radio:yagi_7`)
 
-Place a **VOR Transmitter**, right-click it to set an identifier and a frequency from **108.000 to 117.950 MHz** in **0.050 MHz** steps, then select a regular antenna with the Linking Tool and click the VOR. A loop, directional, or Yagi antenna cannot transmit VOR. Place a **DME Module** directly beside the VOR in any of the six directions; it attaches automatically and detaches if the VOR is removed. VOR range depends equally on the **Navigator and transmitting antenna altitudes**: two ends at Y=62 reach **4 mod km**, and two ends at Y=640 reach **280 mod km**. Mixed heights give a range between those values, capped at 280 mod km. Decoding requires at least **0 dB SNR**; blocks above the transmitting antenna or Navigator reduce reception. The registry still lists a VOR when its antenna is disconnected, but the Navigator cannot decode its signal.
+A receive-only directional antenna with **+9 dB** forward gain and a narrower beam than the 5-element model.
 
-ADS-B reception works down to **0 dB SNR**. With the default distance scale of one block per meter, transmitter and receiver heights contribute equally: two ends at **Y=62** reach **4 mod km**, and two ends at **Y=640** reach **280 mod km**. Range stays capped above Y=640. Directional and Yagi receive antenna gain affects whether a contact decodes. The ADS-B server height bonus can extend the range of lower-altitude contacts for the shared Tablet network, up to the same 280 mod km cap. The mod's kilometers-per-block setting scales these distances.
+### 11-Element Yagi (`radio:yagi_11`)
 
-### DRM (longwave, mediumwave, shortwave)
+A receive-only directional antenna with **+12 dB** forward gain and the narrowest beam. All Yagis can link to placed DX3 or TechniSat Receivers, DRM Radios, FM-DX Webservers, and ADS-B Receivers; they cannot transmit.
 
-1. Place a **DRM Transmitter** and set a frequency from **140 to 30000 kHz**, power, mode **A–D**, bandwidth **5/10/20 kHz**, stream URL, image URL, full service label, short label, and text message. The band changes automatically: **LW 140–299 kHz**, **MW 300–2999 kHz**, and **SW 3000–30000 kHz**. The RF page displays the resulting **Opus equivalent bitrate**, its MP3 playback bitrate, and minimum decode SNR. Mode A has the highest capacity and needs the cleanest signal; mode D is the most robust with the lowest capacity. Wider bandwidth raises capacity but needs more SNR.
-2. Link a normal or directional antenna to the DRM transmitter with the Linking Tool. Place a **Loop Antenna** or Yagi, then use the Linking Tool on it and the **DRM Radio** block. A linked receive antenna is required to decode DRM; the loop cannot be used by transmitters or other receivers.
-3. Open the DRM Radio and tune it to the transmitter frequency in kHz. Its screen shows short and full labels, text, image, mode, bandwidth, Opus equivalent and MP3 bitrates, SNR, received signal, and transmitter power. The placed radio plays the selected stream for players within **32 blocks**, using the same distance and Records volume behavior as the DX3 Receiver. **Mute** silences the speaker.
+## FM equipment
 
-The **Portable DRM Radio** is a handheld receiver with its own tuning, mute, and **PIN** controls. Keep it in your inventory for playback after closing its screen. It has a built-in receiver with an 8 dB reception penalty relative to the placed radio's linked loop antenna. PIN shows the tuned frequency, service label, mode, Opus equivalent bitrate, artwork, and text on the HUD; when decoding stops it says **DRM Unavailable**. Using another handheld radio switches playback to that radio.
+### FM Transmitter (`radio:transmitter`)
 
-LW has continuous long range and modest underground attenuation. MW has moderate daytime range, longer night range, and moderate underground attenuation. SW has a short groundwave range, a skip zone, and a distant skywave reception region; it loses more signal underground. All three bands lose signal underwater. These are gameplay propagation approximations, not a standards compliant DRM waveform decoder. The in-game DRM bitrate represents Opus quality. When FFmpeg is available, the server transcodes the configured stream to MP3 at roughly twice that bitrate, rounded up to a supported MP3 rate and capped at 320 kbps.
+Place it, set a frequency in **kHz**, power in **watts**, and an HTTP(S) audio URL or a file from your Recorder library. The default is **101700 kHz (101.7 MHz)**. Link an antenna to broadcast. **RDS Config** sets PI, PS, RadioText, AF, clock data, and enabled RDS groups. Its **PRESETS** screen has three personal slots for settings and RDS; loading a preset leaves the placed transmitter's frequency, power, and antenna link in place.
 
-### Transmitter presets
+### Radio (`radio:radio`)
 
-The **PRESETS** button in either transmitter screen has three personal slots for that transmitter type. **SAVE** replaces a slot with the current settings; **LOAD** applies a saved slot to the open transmitter. FM presets include the stream URL, direction setting, and all RDS fields and enabled groups. DAB presets include the server and MUX link, ensemble ID, error correction, codec, TII code, and direction setting. Presets persist per player in the world, including after death. Frequency, transmit power, and the physical antenna connection stay with the transmitter when a preset is loaded.
+A portable FM/DAB receiver. Right-click to tune FM from **65–108 MHz** (including OIRT and Japanese FM) or select a DAB channel. FM can use decoded RDS AF frequencies to follow the same PI; DAB can retune to another channel carrying the same MUX or SID. Use **MUTE** for audio and **PIN** for a compact HUD display. Keep the radio in your inventory for playback after closing its screen.
 
-### DAB/DAB+
+### Deepelec DP-666 (`radio:digital_radio`)
 
-1. Place a **DAB Server** and right-click it. Add a MUX ensemble, name it, add a station, and save its SID, label, PTY code (0–31), DLS text or URL, optional MOT image URL, stream URL, and bitrate. The editor shows the MUX's used and available bitrate. Station bitrates must be multiples of 8 kbps, and their sum cannot exceed the capacity determined by the strictest error correction setting of linked transmitters: **576 kbps (EEP-1A)**, **864 kbps (EEP-2A)**, **1152 kbps (EEP-3A)**, or **1728 kbps (EEP-4A)**. These limits use the 864 capacity units and EEP-A subchannel sizes in [ETSI EN 300 401](https://www.etsi.org/deliver/etsi_en/300400_300499/300401/02.01.01_20/en_300401v020101a.pdf). An unlinked MUX uses the EEP-3A limit until a transmitter is linked. A server supports up to 16 ensembles with 32 stations each. Its chunk is kept loaded while the server block exists so linked transmitters can find it.
-2. Place a **DAB Transmitter** and open its **Ensemble** tab. Use **Previous Server** or **Next Server** to link one of the DAB servers in the same dimension that has at least one MUX; the server's coordinates appear in the panel. Choosing a server replaces the transmitter's previous server link and selects that server's first MUX. Use **Previous MUX** or **Next MUX** to select another MUX on the same server, or **Unlink** to disconnect it. Set the transmitter's DAB channel, power, error correction, ensemble ID, four-digit hexadecimal TII code, and DAB or DAB+ mode. The default channel is **11C (220352 kHz)**. Each transmitter gets a position-derived TII code by default; set unique codes for transmitters in an SFN.
-3. Link an antenna with the Linking Tool as above. Open the standard **Radio**, select the DAB tab, and tune to the transmitter's channel; or open the **DX3 Radio** and choose a station from its DAB or combined list.
+An FM-only portable radio with a light frame. Enter a frequency in tenths of a MHz with the keypad: `894` tunes **89.4 MHz**, and `1017` tunes **101.7 MHz**. Valid inputs from `650` to `1080` tune automatically. **STEP** cycles 0.1, 0.5, and 1.0 MHz steps and seek; **+** and **−** tune, **POWER** mutes, **PIN** shows the HUD, and **X** closes the screen. RDS PS and RadioText decode gradually; the clock appears only if the station sends RDS clock data.
 
-DAB accepts any HTTP or HTTPS audio stream URL. For playback, the server transcodes both DAB and DAB+ services to MP3 at a bitrate set by each station. A DAB service uses its configured bitrate, rounded up to a supported MP3 bitrate (32–320 kbps). A DAB+ service treats its configured bitrate as an Opus quality target and uses approximately twice that bitrate for MP3, also rounded up and capped at 320 kbps; for example, 32 kbps becomes 64 kbps MP3 and 128 kbps becomes 256 kbps MP3. The standard Radio chooses the first station in a linked ensemble with a stream URL; the DX3 lets you select a specific station in that ensemble. The standard Radio can retune to another channel carrying the same MUX or a station with the same SID if the current channel is lost. The DP-666 cannot receive DAB.
+### Deepelec DP-666 Black (`radio:black_digital_radio`)
 
-Transmitters linked to the same server multiplex combine as a DAB single-frequency network (SFN) when their frequency, ensemble ID, DAB version, and error correction match. Each transmitter uses one selected server; choose the same server and MUX on every transmitter in an SFN. Their received powers add, so two equally strong transmitters provide about 3 dB more signal than either one alone. Existing transmitters configured only by MUX name keep their legacy name-based link until explicitly linked to a server; an ambiguous name shared by multiple servers no longer broadcasts.
+The same FM receiver and controls as the light DP-666, with a black frame and dark screen.
 
-### Signal meter
+### FM-DX Webserver (`radio:webserver`)
 
-Use the **Signal Meter** to inspect reception without playing audio. Right-click it, switch between **FM** and **DAB**, and use the arrow buttons to step through FM frequencies or DAB channels. For FM, type a frequency in MHz and press **Tune**. **PIN** keeps a compact technical readout on the HUD after closing the meter; press **Unpin** to hide it. The meter only samples while its screen is open or its HUD is pinned.
+Place it and link a regular, directional, or Yagi antenna. Set its location name, background image URL, and theme color. The Tablet's Webservers app can remotely tune it to **65.000–108.000 MHz FM** or **0.150–30.000 MHz DRM**. Every viewer shares its mode and frequency. The display shows signal, SNR, PS/RadioText or DRM text, a 60-second signal graph, and the noise floor on empty frequencies. FM transmitter details and a matching DAB logo appear only after PI and part of PS decode; the **AF** view lists decoded alternatives in frequency order. Live reception updates five times per second and the graph records once per second.
 
-FM shows signal strength, SNR, estimated RDS BER, decoded PI and PS, the current RDS group, and the groups observed since tuning to that transmitter. RDS fields appear only as frames are decoded. DAB shows the MUX, error correction setting, FIC/MSC/frame sync states (**OK**, **ERR**, or **LOST**), and a list of services when the FIC decodes. The TII list shows each transmitter in the received SFN and its measured level relative to the strongest transmitter, which reads **0.0 dB**; the mouse wheel scrolls long station and TII lists. These DAB error states are reception estimates from SNR and protection thresholds, rather than hardware error counters.
+## DAB and multi-band radios
 
-## Audio streams and multiplayer
+### DAB Server (`radio:dab_server`)
 
-An FM transmitter, DRM transmitter, or DAB station can use a local audio file instead of a live URL. Place and open a **Recorder**, then open its **Audio Library** to upload, rename, or delete your files. Choose an MP3, WAV, OGG, Opus, FLAC, AAC, M4A, or MP4 file up to **128 MiB** and **2 hours** long; whichever limit is reached first applies. Keep the Recorder open until the server confirms the upload. The server checks the duration with FFmpeg and rejects files whose duration cannot be read. Each player's library is separate in each world. Files uploaded with older versions are listed under a fallback name and can be renamed in the Recorder. Each player can store up to **512 MiB** of uploaded audio per world.
+Create up to **16 multiplexes**, each with up to **32 services**. For every service, set its SID, label, PTY (0–31), DLS text or URL, optional MOT logo URL, audio source, and bitrate. A service's bitrate must be a multiple of 8 kbps. The MUX editor shows used and remaining capacity:
 
-Press **LIBRARY** in an FM or DRM transmitter or a DAB station's server screen, select one of your uploaded files, and press **LOAD SELECTED AUDIO**. The same file can be used by multiple stations. The files live in the world's `radio_uploads/` folder and remain available after a restart. The server's FFmpeg and audio proxy must be available; uploaded audio is transcoded to MP3 and played on repeat. Deleting a file that a station uses will make that station's audio unavailable until another source is selected. To use a live stream again, enter its URL and apply or save the station.
+| Protection | MUX capacity |
+| --- | ---: |
+| EEP-1A | 576 kbps |
+| EEP-2A | 864 kbps |
+| EEP-3A | 1152 kbps |
+| EEP-4A | 1728 kbps |
 
-Each station starts its own playback clock when you load a file from the library or load an FM preset containing one. The clock continues while nobody is listening: a listener joining 10 seconds later hears the file 10 seconds further along, wrapping to the beginning when the file ends. The start time is saved with the station, so it also survives a world restart. Stations configured with an uploaded file before this feature use that file's modification time as their clock until you load the file from the library again. Live HTTP streams keep their source's own live position.
+The strictest linked transmitter protection determines the limit; an unlinked MUX uses EEP-3A. These limits derive from [ETSI EN 300 401](https://www.etsi.org/deliver/etsi_en/300400_300499/300401/02.01.01_20/en_300401v020101a.pdf).
 
-FM accepts a stream URL entered on the transmitter. On server startup, Radio+ looks for `ffmpeg` on the server's `PATH` and at common installation locations. You can specify an executable with `RADIO_FFMPEG_PATH` or the Java system property `radio.ffmpeg.path`. When available, the server transcodes FM audio to stereo MP3 at 44.1 kHz and 128 kbps for clients. If FFmpeg is unavailable, the original FM URL is sent to clients, so playback depends on their ability to decode that stream. The client includes an MP3 decoder and can try a local `ffmpeg` executable as a fallback.
+### DAB/DAB+ Transmitter (`radio:dab_transmitter`)
 
-The audio proxy listens on the first available TCP port from **28080 through 28110**. Uploaded files are transcoded on the server and sent to listeners through their existing Minecraft connection, so other players do not need access to this extra port for uploaded audio. For live URL streams, clients must be able to reach the proxy port in addition to the game port. The server must be able to reach the source stream URL. If live proxy playback fails or server FFmpeg is unavailable, the radios try the original DAB stream URL directly, so clients must also be able to reach and decode that URL; the configured bitrate does not affect this direct fallback.
+Open **Ensemble** and choose a DAB Server and one of its MUXes directly in the transmitter screen. Set the DAB channel, power, ensemble ID, DAB or DAB+ mode, error correction, and four-digit TII code; the default channel is **11C (220352 kHz)**. Link an antenna. Its **PRESETS** screen has three personal slots for configuration, excluding frequency, power, and physical antenna link.
 
-## Signal and settings
+Transmitters using the **same server MUX**, frequency, ensemble ID, version, and error correction form a single-frequency network (SFN). Their received powers add; two equally strong members provide about **3 dB** more signal than one. Give each transmitter a distinct TII code. Legacy name-based MUX links continue until explicitly linked to a server.
 
-The **TechniSat DIGITRADIO 21** comes as a portable radio and a placeable **TechniSat Receiver** block. Both use the same dark front-panel screen: **MODE** cycles FM, DAB+, and DRM; **INFO** shows programme details; **PIN** puts the tuned programme on the HUD; and **PRESET** opens the DAB or DRM service list. The arrow buttons change FM frequency by **0.1 MHz** or DRM frequency by **1 kHz** while playing; they move between scanned services in the list. The two **SEEK** buttons find the next receivable FM frequency in either direction. Pressing the **VOL** knob mutes or unmutes audio. FM shows frequency until a decoded RDS PS replaces it; the lower display shows RDS while decoding, and broadcast CT appears in the upper display. FM has no station list. **FULL SCAN** in DAB searches from **5A to 13F**, pausing for one second on each multiplex while its services are added to the station counter. A DRM full scan also saves receivable services. Moving the portable radio does not erase those scans; services disappear from the visible list when they cannot be decoded at their saved tuning and return if reception improves. A service that moves to another channel or frequency is found only by running FULL SCAN again. A placed receiver keeps both scans across menu closes and world saves, and its audio is audible to nearby players like the DX3 Receiver. MOT and DRM artwork, DLS/RadioText, PTY, and signal bars appear when available.
+### DX3 Radio (`radio:dx3_radio`)
 
-Use the **Transmitter Registry** item to browse the loaded FM, DAB, DAB+, and DRM transmitters in all dimensions. Each entry shows its frequency, coordinates, power, programme, and audio source. DAB lists each service on a transmitter separately, together with its multiplex. Sort by type, frequency, programme name, country, or power; click the active sort again to reverse its direction. Search for a programme name, FM PI, or DAB SID, choose a mode, and optionally enter minimum or maximum frequency in MHz and power in watts. Press **Apply** to combine these filters, or **Clear** to reset them. Use the page controls and mouse wheel for larger result sets. The **Countries** tab assigns a country name to each first hexadecimal digit (`0`–`9`, `A`–`F`) of an FM RDS PI or an individual DAB service SID. These mappings are shared by the world and persist after restart; unassigned digits and DRM transmitters show **Unknown**.
+A portable FM/DAB station-list radio. Choose **FM**, **DAB**, or **FM + DAB**, scroll the list, and sort by frequency, name, or group. FM uses the first PS frame for stable ordering while Dynamic PS remains visible; DAB entries show service names and MOT logos. Stations sharing a PI or SID group together. **PLAYER** shows programme information, MUX, codec, bitrate, and RT or DLS. **PIN** keeps station details on the HUD even after signal loss.
 
-- Signal strength decreases with distance and frequency mismatch. Antennas improve range; higher transmitter and receiver positions improve coverage through altitude 320, including above altitude 160. Vertical separation contributes at most 64 blocks to propagation distance so a high tower keeps its height benefit. Directional mode favors the direction the transmitter faced when placed.
-- Blocks above a receiver cost FM 1.25 dB each, up to 30 dB, and DAB an additional 1.25 dB each. DAB also loses strength faster over distance: its distance curve uses 78% of FM's radius at the same power. DAB audio stays clean while decoding succeeds, then cuts out as reception falls below the decoding threshold. The minimum DAB signal is **3, 6, 9, or 12 dBµV** for EEP-1A through EEP-4A respectively, in addition to the SNR requirement. After selecting a DAB station or losing reception, handheld radios and the DX3 Receiver wait **1.5 seconds** of stable reception before restarting audio.
-- Having the player's head underwater reduces FM signal by 12 dB and DAB by 20 dB before weak-signal effects. DAB reception stops when the player or the vehicle they are riding moves faster than 84 blocks per second; FM continues to use its usual signal model.
-- Displayed SNR uses a receiver estimate rather than the raw signal minus noise-floor difference. FM is calibrated to reach about 53 dB near 98 dBµV; DAB approaches a 35 dB ceiling.
-- FM playback blends stream audio with static as reception worsens. The radio screen shows signal and RDS BER; the DAB screen shows channel, FIC, MSC, and frame sync diagnostics.
-- At night (19:00–05:00 Minecraft time), meteor-scatter openings can briefly lift a distant FM transmitter to an unstable **0–25 dBµV** signal for **1–10 seconds**. Use `/meteorscatter` or right-click with the **Meteor Forecaster** to see the current rate and the next or active opening. An admin (permission level 2) can use `/meteorscatter rate <meteors_per_hour>` to set **20–1200** scheduled meteors per real-world hour in the current dimension. **0**, the default, draws a rate for each Minecraft night and previews the coming night's rate during the day. Rates of **30–60/hour** occur on 70% of nights, while rates above **500/hour** occur on only 2% of nights. Only events occurring during Minecraft night affect reception, so daytime events are skipped. The chosen setting persists with the world and changes take effect immediately. Meteor scatter affects FM reception, DX3 lists, world receivers, and the Signal Meter.
-- Chunks containing an FM transmitter, DAB transmitter, or DAB server are force-loaded while those blocks remain there. Large broadcast networks can therefore keep many chunks loaded.
-- On first run, NeoForge creates `config/radio-common.toml`. `kilometersPerBlock` defaults to `0.001` (one block represents one meter); `noiseFloorMinDbuv` and `noiseFloorMaxDbuv` default to `-5.0` and `-1.0`.
+**PREF** cycles Prefer DAB, Prefer FM, Balanced, and Prefer audio quality. Linked services follow the same PI or SID across frequencies; an FM PI matching a DAB SID links the bands. Balanced switches as reception deteriorates. Prefer audio quality chooses DAB over available FM above **72 kbps DAB+** or **128 kbps DAB**, but can use lower bitrate DAB when FM is unavailable.
 
-## Building and developing
+### DX3 Receiver (`radio:dx3_receiver`)
 
-The Gradle wrapper uses Gradle 9.2.1. Run these commands from the project root:
+A placeable DX3 with the same station list and preference modes. Link an antenna for best reception; without one, it has a **22 dB** penalty. Its selected FM or DAB station plays for everyone within **32 blocks**, fading with distance and using Minecraft's Records/Jukebox volume. **MUTE** silences its speaker for everyone. Selection, preference, mute, and antenna link persist with the block.
 
-```sh
-./gradlew build
-./gradlew runClient
-./gradlew runServer
-```
+### TechniSat DIGITRADIO 21 (`radio:technisat_radio`)
 
-On Windows, use `gradlew.bat` in place of `./gradlew`. The build JAR is written to `build/libs/`. The MP3 Java dependencies are packaged through JarJar.
+A portable **FM, DAB+, and DRM** receiver. **MODE** changes band; **INFO** shows programme data; **PIN** keeps the display on the HUD; **PRESET** opens the DAB or DRM service list. Arrow buttons step FM by **0.1 MHz** and DRM by **1 kHz**, and seek buttons find FM signals. Press **VOL** to mute. **FULL SCAN** searches DAB from **5A to 13F**, pausing on found MUXes; DRM has its own scan. FM has no station list. Saved DAB/DRM lists persist when the radio moves, but services that change channel require another scan.
 
-`gradle.properties` currently pins `org.gradle.java.home` to a local macOS Java 21 path. Change or remove that property if Java 21 is installed elsewhere. If dependencies are missing in an IDE, run `./gradlew --refresh-dependencies` and reload the Gradle project.
+### TechniSat Receiver (`radio:technisat_receiver`)
 
-The project uses Mojang's official mappings. See the [mapping license](https://github.com/NeoForged/NeoForm/blob/main/Mojang.md) and [NeoForge documentation](https://docs.neoforged.net/).
+The placeable TechniSat uses the same controls and scans as the portable version. It saves scans with the block and plays audio for nearby players.
 
-## License
+## DRM equipment
 
-The mod metadata declares **All Rights Reserved**.
+### DRM Transmitter (`radio:drm_transmitter`)
+
+Broadcast on **140–30000 kHz** with a regular or directional antenna. Set power, audio URL or Recorder file, artwork URL, full and short labels, and text. The band changes automatically: **LW 140–299 kHz**, **MW 300–2999 kHz**, **SW 3000–30000 kHz**. Choose mode **A–D** and **5, 10, or 20 kHz** bandwidth: wider and less robust settings allow more bitrate but need cleaner reception. The displayed bitrate is an Opus-quality equivalent; server MP3 playback uses roughly twice that bitrate, rounded up and capped at **320 kbps**.
+
+### DRM Radio (`radio:drm_radio`)
+
+A placed DRM receiver that needs a linked **Loop Antenna** or Yagi. Tune in kHz to see service labels, text, artwork, mode, bandwidth, bitrate, SNR, signal, and transmitter power. It plays for players within **32 blocks**, with distance fade and Records/Jukebox volume; **MUTE** silences its speaker.
+
+### Portable DRM Radio (`radio:portable_drm_radio`)
+
+A handheld DRM receiver with tuning, mute, and **PIN**. It receives without a placed antenna but has an **8 dB** penalty compared with a linked loop. Keep it in inventory for continued playback. The pinned HUD shows service information and says **DRM Unavailable** if decoding stops.
+
+LW carries continuously over long distances and works moderately underground. MW range increases at night. SW has a skip zone and a distant return, but performs poorly underground. These are gameplay propagation rules rather than a standards-compliant DRM decoder.
+
+## Flight tracking and navigation
+
+### ADS-B Transponder (`radio:adsb_transponder`)
+
+Right-click to set its identifier and operator. While held, dropped, or stored in a loaded entity or block container, it broadcasts its carrier's coordinates, altitude, heading, and speed. Speed uses **1 block = 1 meter** and is shown in km/h regardless of the mod's radio-distance scale.
+
+### ADS-B Receiver (`radio:adsb_receiver`)
+
+Place it and link any compatible antenna to open a radar of receivable transponders in the same dimension. Select a contact for identifier, operator, coordinates, altitude, heading, speed, distance, and SNR. The radar offers **5, 10, 25, 70, 140, and 280 mod km** views and refreshes about twice per second.
+
+### ADS-B Server (`radio:adsb_server`)
+
+Place it and link an ADS-B Receiver with the Linking Tool. Every connected server contributes its receiver's contacts to the shared Tablet network; duplicate contacts use the strongest signal. Servers are not plotted on the Tablet map. A server at **Y=320** can add up to **30 mod km** to its linked receiver's range, while blocks above an underground server reduce range and SNR.
+
+### Tablet (`radio:web_tablet`)
+
+Its home screen has **Webservers** and **FlightTracking** apps. Webservers opens the shared FM-DX receivers. FlightTracking combines contacts from all linked ADS-B Servers in the selected dimension and displays received transponders and VOR transmitters on a draggable, zoomable **X/Z coordinate grid**. Hover over a marker for details. Use **HOME** to change apps. The map uses the server's distance scale; a server only contributes contacts that its linked receiver can decode.
+
+### VOR Transmitter (`radio:vor_transmitter`)
+
+Set an identifier and a frequency from **108.000 to 117.950 MHz** in **0.050 MHz** steps, then link a **regular Antenna**. A directional, loop, or Yagi antenna cannot transmit VOR. The Navigator shows radial and SNR when tuned to its frequency.
+
+### DME Module (`radio:dme_module`)
+
+Place it directly beside a VOR Transmitter in any of the six directions. It attaches automatically and enables slant-range distance in **blocks** on the Navigator. Removing the VOR detaches it.
+
+### Navigator (`radio:navigator`)
+
+The **ADS-B** tab lists nearby decodable transponders on a **280 mod km** radar and plots tuned VORs that have DME. Set independent **VOR 1** and **VOR 2** frequencies to see identifier, radial, SNR, transmitter position, and DME distance. **PIN VOR** keeps both readings on the HUD; the registry tab lists loaded VOR transmitters across dimensions.
+
+VOR and ADS-B decode at **0 dB SNR** or better. Transmitter and receiver height contribute equally to range: two endpoints at **Y=62** reach about **4 mod km**, while two at **Y=640** can reach **280 mod km**. Obstruction lowers reception. The configured `kilometersPerBlock` determines how many world blocks a mod kilometer spans; it does **not** change transponder speed.
+
+## Audio, signal, and server settings
+
+### Audio playback
+
+An FM transmitter, DRM transmitter, or DAB service can use an HTTP(S) stream or a Recorder file. Uploaded files loop and keep their own playback clock even with no listeners; joining later starts at the current elapsed position, including after a restart. A deleted file becomes unavailable until the station selects another source.
+
+The server looks for FFmpeg on `PATH` and common locations. Set `RADIO_FFMPEG_PATH` or the Java property `radio.ffmpeg.path` if needed. The proxy uses the first free TCP port in **28080–28110**. Uploaded audio is sent to listeners through the Minecraft connection; live URLs also require clients to reach the proxy port and the server to reach the stream. FM is transcoded to stereo MP3 at **44.1 kHz, 128 kbps** when FFmpeg is available. DAB uses its selected MP3 bitrate; DAB+ treats its configured bitrate as an Opus-quality target and uses roughly twice that for MP3, rounded up and capped at **320 kbps**. If live proxy playback fails, radios may try the source URL directly, subject to client codec support.
+
+### Signal behavior
+
+- FM and DAB lose signal over distance, frequency mismatch, obstruction, and water. Antenna direction and transmitter power matter; altitude improves coverage through **Y=320**. DAB falls off faster than FM but stays clean until it loses decode.
+- Blocks above a receiver cost FM **1.25 dB** each, up to 30 dB, and DAB another **1.25 dB** each. Being underwater costs FM **12 dB** and DAB **20 dB**. DAB stops decoding above **84 blocks/s** player or vehicle speed.
+- DAB needs at least **3, 6, 9, or 12 dBµV** for EEP-1A through EEP-4A, as well as enough SNR. Handheld and placed DX3 DAB audio waits **1.5 seconds** of stable reception after tuning or a brief loss.
+- FM audio blends with static at weak levels. FM displayed SNR reaches roughly **53 dB** near 98 dBµV; DAB approaches a **35 dB** ceiling. RDS PS and RadioText decode gradually with BER, and RDS time appears only when broadcast.
+
+### Config and commands
+
+NeoForge creates `config/radio-common.toml`. `kilometersPerBlock` defaults to `0.001` (one block per meter for radio range); `noiseFloorMinDbuv` and `noiseFloorMaxDbuv` default to `-5.0` and `-1.0`; `maxAudioStorageMiB` defaults to `512`. Transmitter, DAB Server, webserver, and navigation network chunks may be kept loaded while those blocks exist. Large networks can keep many chunks active.
+
+## Build and license
+
+Run `./gradlew build` from the project root. For development, use `./gradlew runClient` or `./gradlew runServer` (`gradlew.bat` on Windows). The JAR is written to `build/libs/`. The Gradle wrapper uses **Gradle 9.2.1** and packages MP3 Java dependencies through JarJar. `gradle.properties` currently pins `org.gradle.java.home` to a local macOS Java 21 path; change or remove it on other systems.
+
+Radio+ code and original artwork are released under the [MIT License](LICENSE). The NeoForged MDK template files retain their separate [template license](TEMPLATE_LICENSE.txt). The project uses Mojang's official mappings; see the [mapping license](https://github.com/NeoForged/NeoForm/blob/main/Mojang.md) and [NeoForge documentation](https://docs.neoforged.net/).

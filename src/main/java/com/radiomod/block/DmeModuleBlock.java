@@ -12,12 +12,16 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 public class DmeModuleBlock extends Block {
     public static final BooleanProperty ATTACHED = BooleanProperty.create("attached");
+    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public DmeModuleBlock(Properties properties) {
-        super(properties); registerDefaultState(stateDefinition.any().setValue(ATTACHED, false));
+        super(properties); registerDefaultState(stateDefinition.any().setValue(ATTACHED, false)
+                .setValue(FACING, Direction.NORTH));
     }
     public static boolean hasAdjacentVor(Level level, BlockPos pos) {
         for (Direction direction : Direction.values())
@@ -25,7 +29,8 @@ public class DmeModuleBlock extends Block {
         return false;
     }
     @Override public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState().setValue(ATTACHED, hasAdjacentVor(context.getLevel(), context.getClickedPos()));
+        return defaultBlockState().setValue(ATTACHED, hasAdjacentVor(context.getLevel(), context.getClickedPos()))
+                .setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
     @Override public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighbor,
                                           BlockPos neighborPos, boolean moved) {
@@ -42,6 +47,6 @@ public class DmeModuleBlock extends Block {
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(ATTACHED);
+        builder.add(ATTACHED, FACING);
     }
 }

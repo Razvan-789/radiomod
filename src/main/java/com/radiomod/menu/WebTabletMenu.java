@@ -188,6 +188,7 @@ public class WebTabletMenu extends AbstractContainerMenu {
         if (sender != player || request.containerId() != containerId || !stillValid(sender)) return;
         if ("adsb_mode".equals(request.action()) && localPos == null) {
             adsbMode = request.number() != 0;
+            if (adsbMode) { selectedDimension = ""; selectedPos = 0; }
             if (adsbMode && adsbDimension.isBlank()) {
                 adsbDimension = sender.serverLevel().dimension().location().toString();
                 centerOnNetwork(sender.serverLevel(), sender);

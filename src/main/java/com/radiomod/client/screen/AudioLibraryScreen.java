@@ -35,6 +35,7 @@ public class AudioLibraryScreen extends Screen {
     private boolean confirmDelete;
     private int page;
     private int pageCount = 1;
+    private long usedBytes, limitBytes;
     private int left;
     private int top;
 
@@ -126,12 +127,17 @@ public class AudioLibraryScreen extends Screen {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen instanceof AudioLibraryScreen screen && screen.containerId == payload.containerId()) {
             screen.update(payload);
+        } else if (minecraft.screen instanceof RecorderScreen recorder) {
+            recorder.setStorage(payload);
         }
     }
 
     private void update(SyncAudioLibraryPayload payload) {
         page = payload.page();
         pageCount = payload.pageCount();
+        usedBytes = payload.usedBytes();
+        limitBytes = payload.limitBytes();
+        if (parent instanceof RecorderScreen recorder) recorder.setStorage(payload);
         entries.clear();
         for (String line : payload.entries().split("\\n")) {
             String[] parts = line.split("\\|", 3);
@@ -180,6 +186,9 @@ public class AudioLibraryScreen extends Screen {
                 left + 15, top + 33, TransmitterUi.MUTED, false);
         graphics.drawString(font, "Page " + (page + 1) + " / " + pageCount,
                 left + 151, top + 240, TransmitterUi.TEXT, false);
+        if (limitBytes > 0) graphics.drawString(font, String.format(java.util.Locale.ROOT,
+                "%.1f MiB free of %.0f MiB", Math.max(0, limitBytes - usedBytes) / 1048576.0,
+                limitBytes / 1048576.0), left + 14, top + 252, TransmitterUi.MUTED, false);
     }
 
     @Override

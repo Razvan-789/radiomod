@@ -1,6 +1,7 @@
 package com.radiomod.server;
 
 import com.radiomod.Radio;
+import com.radiomod.Config;
 import com.radiomod.menu.DabServerMenu;
 import com.radiomod.menu.RecorderMenu;
 import com.radiomod.menu.TransmitterMenu;
@@ -86,7 +87,9 @@ public final class AudioLibraryManager {
                     .append('\n');
         }
         PacketDistributor.sendToPlayer(player,
-                new SyncAudioLibraryPayload(player.containerMenu.containerId, page, pageCount, encoded.toString()));
+                new SyncAudioLibraryPayload(player.containerMenu.containerId, page, pageCount,
+                        encoded.toString(), entries.stream().mapToLong(ServerAudioProxy.StoredAudio::bytes).sum(),
+                        Config.getMaxAudioStorageBytes()));
     }
 
     private static boolean validMenu(ServerPlayer player) {

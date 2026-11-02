@@ -1,6 +1,12 @@
 {
   "variants": {
-    "attached=false": {"model": "radio:block/dme_module"},
-    "attached=true": {"model": "radio:block/dme_module_attached"}
+    "attached=false,facing=north": {"model": "radio:block/dme_module", "y": 0},
+    "attached=false,facing=east": {"model": "radio:block/dme_module", "y": 90},
+    "attached=false,facing=south": {"model": "radio:block/dme_module", "y": 180},
+    "attached=false,facing=west": {"model": "radio:block/dme_module", "y": 270},
+    "attached=true,facing=north": {"model": "radio:block/dme_module_attached", "y": 0},
+    "attached=true,facing=east": {"model": "radio:block/dme_module_attached", "y": 90},
+    "attached=true,facing=south": {"model": "radio:block/dme_module_attached", "y": 180},
+    "attached=true,facing=west": {"model": "radio:block/dme_module_attached", "y": 270}
   }
 }

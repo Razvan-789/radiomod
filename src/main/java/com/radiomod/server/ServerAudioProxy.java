@@ -1,6 +1,7 @@
 package com.radiomod.server;
 
 import com.radiomod.Radio;
+import com.radiomod.Config;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -39,7 +40,6 @@ public final class ServerAudioProxy {
     private static final String DAB_PREFIX = "/dab/";
     private static final int PROXY_OUTPUT_SAMPLE_RATE_HZ = 44_100;
     private static final long MAX_UPLOADED_DURATION_SECONDS = 2 * 60 * 60;
-    private static final long MAX_OWNER_STORAGE_BYTES = 512L * 1024 * 1024;
     private static final Pattern DURATION_PATTERN = Pattern.compile("Duration: (\\d+):(\\d+):(\\d+(?:\\.\\d+)?)");
     private static final Pattern AUDIO_STREAM_PATTERN = Pattern.compile("(?m)^\\s*Stream #\\d+:\\d+[^\\n]*: Audio:");
     private static final int[] MP3_BITRATES_KBPS = {
@@ -237,8 +237,9 @@ public final class ServerAudioProxy {
                     }
                 }).sum();
             }
-            if (storedBytes + expectedBytes > MAX_OWNER_STORAGE_BYTES) {
-                throw new IOException("Your uploaded audio storage is full (512 MiB)");
+            if (storedBytes + expectedBytes > Config.getMaxAudioStorageBytes()) {
+                throw new IOException("Your uploaded audio storage is full (limit "
+                        + Config.MAX_AUDIO_STORAGE_MIB.get() + " MiB)");
             }
             Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
             UPLOADED_DURATIONS.put(file, durationSeconds);

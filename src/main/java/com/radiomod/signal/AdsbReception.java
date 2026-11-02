@@ -191,7 +191,8 @@ public final class AdsbReception {
         int heading = horizontal > .0001
                 ? Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(velocity.x, -velocity.z))), 360)
                 : Math.floorMod((int) Math.round(180 - entity.getYRot()), 360);
-        double speed = horizontal * Config.getKilometersPerBlock() * 20 * 3600;
+        // One game block is one real meter for speed, independent of the radio distance scale.
+        double speed = horizontal * 20 * 3.6;
         return new Motion(heading, Math.max(0, Math.min(100_000, speed)));
     }
     private static void add(List<Broadcast> found, UUID sourceId, ItemStack stack, String carrier, Vec3 position, Motion motion) {

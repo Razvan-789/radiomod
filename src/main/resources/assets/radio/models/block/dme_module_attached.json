@@ -1,4 +1,12 @@
 {
-  "parent": "minecraft:block/cube_all",
-  "textures": {"all": "radio:block/dme_module_attached"}
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "radio:block/dme_module_attached",
+    "north": "radio:block/dme_module_attached",
+    "south": "radio:block/dab_transmitter_side",
+    "east": "radio:block/dab_transmitter_side",
+    "west": "radio:block/dab_transmitter_side",
+    "up": "radio:block/dab_transmitter_top",
+    "down": "radio:block/dab_transmitter_side"
+  }
 }

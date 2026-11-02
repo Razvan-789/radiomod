@@ -54,6 +54,11 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import com.radiomod.menu.RadioMenu;
@@ -68,7 +73,16 @@ import com.radiomod.network.SyncSignalMeterPayload;
 @EventBusSubscriber(modid = Radio.MODID, value = Dist.CLIENT)
 public class RadioClient {
     private static Object pinnedLevel;
+
+    static void onItemTooltip(ItemTooltipEvent event) {
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(event.getItemStack().getItem());
+        if (Radio.MODID.equals(id.getNamespace()))
+            event.getToolTip().add(Component.translatable("tooltip.radio." + id.getPath())
+                    .withStyle(ChatFormatting.GRAY));
+    }
+
     public RadioClient(ModContainer container) {
+        NeoForge.EVENT_BUS.addListener(RadioClient::onItemTooltip);
         // Allows NeoForge to create a config screen for this mod's configs.
         // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
         // Do not forget to add translations for your config options to the en_us.json file.

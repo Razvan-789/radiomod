@@ -1,12 +1,8 @@
 {
-  "parent": "minecraft:block/cube",
+  "parent": "minecraft:block/orientable",
   "textures": {
-    "particle": "radio:block/vor_transmitter_front",
-    "down": "minecraft:block/iron_block",
-    "up": "minecraft:block/iron_block",
-    "north": "radio:block/vor_transmitter_front",
-    "south": "minecraft:block/iron_block",
-    "east": "minecraft:block/iron_block",
-    "west": "minecraft:block/iron_block"
+    "front": "radio:block/vor_transmitter_front",
+    "side": "radio:block/dab_transmitter_side",
+    "top": "radio:block/dab_transmitter_top"
   }
 }

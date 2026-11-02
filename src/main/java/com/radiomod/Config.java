@@ -18,6 +18,11 @@ public class Config {
             .comment("Maximum receiver noise floor in dBuV.")
             .defineInRange("noiseFloorMaxDbuv", -1.0D, -120.0D, 50.0D);
 
+    public static final ModConfigSpec.IntValue MAX_AUDIO_STORAGE_MIB = BUILDER
+            .comment("Maximum uploaded audio storage per player, per world, in MiB.",
+                    "Existing files remain accessible if this is lowered below their current total.")
+            .defineInRange("maxAudioStorageMiB", 512, 128, 16384);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {
@@ -33,5 +38,9 @@ public class Config {
 
     public static double getNoiseFloorMaxDbuv() {
         return Math.max(NOISE_FLOOR_MIN_DBUV.get(), NOISE_FLOOR_MAX_DBUV.get());
+    }
+
+    public static long getMaxAudioStorageBytes() {
+        return MAX_AUDIO_STORAGE_MIB.get().longValue() * 1024L * 1024L;
     }
 }
