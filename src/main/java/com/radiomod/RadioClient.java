@@ -13,6 +13,7 @@ import com.radiomod.client.screen.Dx3Screen;
 import com.radiomod.client.screen.TechnisatScreen;
 import com.radiomod.client.screen.TransmitterScreen;
 import com.radiomod.client.screen.SignalMeterScreen;
+import com.radiomod.client.screen.SpectrumAnalyserScreen;
 import com.radiomod.client.screen.RegistryScreen;
 import com.radiomod.client.screen.WebTabletScreen;
 import com.radiomod.client.screen.AdsbRadarScreen;
@@ -26,6 +27,7 @@ import com.radiomod.menu.AdsbTransponderMenu;
 import com.radiomod.menu.NavigatorMenu;
 import com.radiomod.menu.VorTransmitterMenu;
 import com.radiomod.client.FmAudioManager;
+import com.radiomod.client.SpectrumAnalyserAudio;
 import com.radiomod.client.PlacedReceiverAudioManager;
 import com.radiomod.item.RadioItem;
 import com.radiomod.item.TechnisatRadioItem;
@@ -64,7 +66,9 @@ import net.minecraft.world.entity.player.Player;
 import com.radiomod.menu.RadioMenu;
 import com.radiomod.menu.Dx3Menu;
 import com.radiomod.menu.SignalMeterMenu;
+import com.radiomod.menu.SpectrumAnalyserMenu;
 import com.radiomod.signal.SignalMeterState;
+import com.radiomod.signal.SpectrumAnalyserState;
 import com.radiomod.network.SyncSignalMeterPayload;
 
 // This class will not load on dedicated servers. Accessing client side code from here is safe.
@@ -104,6 +108,7 @@ public class RadioClient {
         event.<Dx3Menu, TechnisatScreen>register(Radio.TECHNISAT_MENU.get(), TechnisatScreen::new);
         event.<Dx3Menu, TechnisatScreen>register(Radio.TECHNISAT_RECEIVER_MENU.get(), TechnisatScreen::new);
         event.<SignalMeterMenu, SignalMeterScreen>register(Radio.SIGNAL_METER_MENU.get(), SignalMeterScreen::new);
+        event.<SpectrumAnalyserMenu, SpectrumAnalyserScreen>register(Radio.SPECTRUM_ANALYSER_MENU.get(), SpectrumAnalyserScreen::new);
         event.<RegistryMenu, RegistryScreen>register(Radio.REGISTRY_MENU.get(), RegistryScreen::new);
         event.<WebTabletMenu, WebTabletScreen>register(Radio.WEB_TABLET_MENU.get(), WebTabletScreen::new);
         event.<WebTabletMenu, WebTabletScreen>register(Radio.WEBSERVER_MENU.get(), WebTabletScreen::new);
@@ -127,8 +132,10 @@ public class RadioClient {
         if (pinnedLevel != minecraft.level) {
             TechnisatPinnedState.clear();
             NavigatorHudState.clear();
+            SpectrumAnalyserState.clearClient();
             pinnedLevel = minecraft.level;
         }
+        SpectrumAnalyserAudio.tick(minecraft);
         if (minecraft.isPaused()) {
             return;
         }

@@ -17,6 +17,13 @@ public final class WebTabletAudio {
 
     public synchronized void play(Minecraft minecraft, boolean drm, boolean signal,
                                   double signalDbuv, double snrDb, String token, String fallback) {
+        play(minecraft, drm, signal, signalDbuv, snrDb, token, fallback, 0, 1);
+    }
+
+    /** Spectrum receivers can impose extra passband noise without changing tablet playback. */
+    public synchronized void play(Minecraft minecraft, boolean drm, boolean signal,
+                                  double signalDbuv, double snrDb, String token, String fallback,
+                                  double minimumNoise, double audioScale) {
         String url = signal ? FmAudioManager.resolvePlayableUrl(minecraft, token) : "";
         if (drm && url.isBlank()) { stop(); return; }
         String backup = signal ? FmAudioManager.resolvePlayableUrl(minecraft, fallback) : "";
@@ -51,8 +58,8 @@ public final class WebTabletAudio {
                 audio = lerp(fade, .24, 0); noise = lerp(fade, .34, .68);
             }
             double signalFade = clamp((signalDbuv - 5) / 15);
-            stream.audioGain = audio * lerp(signalFade, .18, 1);
-            stream.noiseGain = Math.max(noise, lerp(signalFade, .62, .08));
+            stream.audioGain = audio * lerp(signalFade, .18, 1) * clamp(audioScale);
+            stream.noiseGain = Math.max(minimumNoise, Math.max(noise, lerp(signalFade, .62, .08)));
         }
         if (start) stream.start();
     }

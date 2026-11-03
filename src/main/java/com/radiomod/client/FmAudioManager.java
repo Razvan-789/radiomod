@@ -4,6 +4,7 @@ import com.radiomod.Radio;
 import com.radiomod.blockentity.DabServerBlockEntity;
 import com.radiomod.blockentity.TransmitterBlockEntity;
 import com.radiomod.blockentity.DabTransmitterBlockEntity;
+import com.radiomod.client.screen.SpectrumAnalyserScreen;
 import com.radiomod.item.RadioItem;
 import com.radiomod.item.PortableDrmRadioItem;
 import com.radiomod.item.TechnisatRadioItem;
@@ -101,6 +102,13 @@ public final class FmAudioManager {
         Player player = minecraft.player;
         Level level = minecraft.level;
         if (player == null || level == null) {
+            pendingDabStation = "";
+            stopStreamDecoder();
+            setMix(0.0, 0.0);
+            return;
+        }
+        if (minecraft.screen instanceof SpectrumAnalyserScreen
+                || SpectrumAnalyserAudio.ownsBackgroundAudio(minecraft)) {
             pendingDabStation = "";
             stopStreamDecoder();
             setMix(0.0, 0.0);

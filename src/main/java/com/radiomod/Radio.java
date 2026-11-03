@@ -47,6 +47,7 @@ import com.radiomod.item.AdsbTransponderItem;
 import com.radiomod.item.NavigatorItem;
 import com.radiomod.item.RadioItem;
 import com.radiomod.item.SignalMeterItem;
+import com.radiomod.item.SpectrumAnalyserItem;
 import com.radiomod.item.MeteorForecasterItem;
 import com.radiomod.item.PortableDrmRadioItem;
 import com.radiomod.menu.PortableDrmMenu;
@@ -56,8 +57,11 @@ import com.radiomod.network.StopAudioRelayPayload;
 import com.radiomod.network.AudioRelayChunkPayload;
 import com.radiomod.signal.PortableDrmState;
 import com.radiomod.menu.SignalMeterMenu;
+import com.radiomod.menu.SpectrumAnalyserMenu;
 import com.radiomod.network.SyncSignalMeterPayload;
+import com.radiomod.network.SyncSpectrumPayload;
 import com.radiomod.signal.SignalMeterState;
+import com.radiomod.signal.SpectrumAnalyserState;
 import com.radiomod.menu.RadioMenu;
 import com.radiomod.menu.Dx3Menu;
 import com.radiomod.menu.TransmitterMenu;
@@ -275,6 +279,7 @@ public class Radio {
     public static final DeferredItem<Item> PORTABLE_DRM_RADIO_ITEM = ITEMS.register("portable_drm_radio",
             () -> new PortableDrmRadioItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> SIGNAL_METER_ITEM = ITEMS.register("signal_meter", () -> new SignalMeterItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<Item> SPECTRUM_ANALYSER_ITEM = ITEMS.register("spectrum_analyser", () -> new SpectrumAnalyserItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> REGISTRY_ITEM = ITEMS.register("registry", () -> new RegistryItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> WEB_TABLET_ITEM = ITEMS.register("web_tablet",
             () -> new WebTabletItem(new Item.Properties().stacksTo(1)));
@@ -341,6 +346,8 @@ public class Radio {
                     new Dx3Menu(id, inventory, buffer.readBlockPos(), true)));
     public static final DeferredHolder<MenuType<?>, MenuType<SignalMeterMenu>> SIGNAL_METER_MENU =
             MENUS.register("signal_meter", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new SignalMeterMenu(containerId, inventory)));
+    public static final DeferredHolder<MenuType<?>, MenuType<SpectrumAnalyserMenu>> SPECTRUM_ANALYSER_MENU =
+            MENUS.register("spectrum_analyser", () -> IMenuTypeExtension.create((id, inventory, buffer) -> new SpectrumAnalyserMenu(id, inventory)));
     public static final DeferredHolder<MenuType<?>, MenuType<RegistryMenu>> REGISTRY_MENU =
             MENUS.register("registry", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new RegistryMenu(containerId, inventory)));
     public static final DeferredHolder<MenuType<?>, MenuType<WebTabletMenu>> WEB_TABLET_MENU =
@@ -394,6 +401,7 @@ public class Radio {
                 output.accept(TECHNISAT_RADIO_ITEM.get());
                 output.accept(PORTABLE_DRM_RADIO_ITEM.get());
                 output.accept(SIGNAL_METER_ITEM.get());
+                output.accept(SPECTRUM_ANALYSER_ITEM.get());
                 output.accept(REGISTRY_ITEM.get());
                 output.accept(WEB_TABLET_ITEM.get());
                 output.accept(ADSB_TRANSPONDER_ITEM.get());
@@ -740,6 +748,8 @@ public class Radio {
                         com.radiomod.client.PlacedReceiverAudioManager.get().update(payload)));
         registrar.playToClient(SyncSignalMeterPayload.TYPE, SyncSignalMeterPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> SignalMeterState.updateClient(payload)));
+        registrar.playToClient(SyncSpectrumPayload.TYPE, SyncSpectrumPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> SpectrumAnalyserState.updateClient(payload)));
     }
 
     // Add the example block item to the building blocks tab
@@ -765,6 +775,7 @@ public class Radio {
             event.accept(BLACK_DIGITAL_RADIO_ITEM);
             event.accept(DX3_RADIO_ITEM);
             event.accept(SIGNAL_METER_ITEM);
+            event.accept(SPECTRUM_ANALYSER_ITEM);
             event.accept(LINKING_TOOL_ITEM);
             event.accept(ADSB_TRANSPONDER_ITEM);
         }
@@ -881,6 +892,10 @@ public class Radio {
                 && (player.containerMenu instanceof SignalMeterMenu || SignalMeterState.settings(player).pinned)) {
             PacketDistributor.sendToPlayer(serverPlayer, SignalMeterState.sample(player));
         }
+        if (SpectrumAnalyserState.hasAnalyser(player)
+                && (player.containerMenu instanceof SpectrumAnalyserMenu
+                    || SpectrumAnalyserState.settings(player).band == 0 && player.tickCount % 10 == 0))
+            PacketDistributor.sendToPlayer(serverPlayer, SpectrumAnalyserState.sample(player));
 
         if (PortableDrmRadioItem.isSelected(player) && PortableDrmRadioItem.hasInInventory(player)) {
             if (player.tickCount % 20 == 0) {
