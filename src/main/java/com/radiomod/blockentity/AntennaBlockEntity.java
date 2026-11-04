@@ -1,6 +1,7 @@
 package com.radiomod.blockentity;
 
 import com.radiomod.Radio;
+import com.radiomod.signal.SignalNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -29,8 +30,19 @@ public class AntennaBlockEntity extends BlockEntity {
     }
 
     public void setLinkedTransmitterPos(@Nullable BlockPos linkedTransmitterPos) {
+        if (this.linkedTransmitterPos != null) SignalNetwork.markChanged(level);
         this.linkedTransmitterPos = linkedTransmitterPos;
         setChanged();
+    }
+
+    @Override public void setChanged() {
+        super.setChanged();
+        if (linkedTransmitterPos != null) SignalNetwork.markChanged(level);
+    }
+
+    @Override public void setRemoved() {
+        if (linkedTransmitterPos != null) SignalNetwork.markChanged(level);
+        super.setRemoved();
     }
 
     @Override

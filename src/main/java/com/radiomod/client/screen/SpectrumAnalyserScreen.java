@@ -21,6 +21,22 @@ import org.lwjgl.glfw.GLFW;
 
 /** All FFT-like drawing, motion, noise and waterfall history live on the client. */
 public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnalyserMenu> {
+    private record Marker(int from, int to, String label) { }
+    private static final Marker[] MARKERS = {
+            new Marker(140, 400, "LW BROADCAST"), new Marker(500, 1_600, "MW BROADCAST"),
+            new Marker(2_300, 2_495, "120m SW"), new Marker(3_200, 3_400, "90m SW"),
+            new Marker(3_900, 4_000, "75m SW"), new Marker(4_750, 5_060, "60m SW"),
+            new Marker(5_900, 6_200, "49m SW"), new Marker(7_200, 7_450, "41m SW"),
+            new Marker(9_400, 9_900, "31m SW"), new Marker(11_600, 12_100, "25m SW"),
+            new Marker(13_570, 13_870, "22m SW"), new Marker(15_100, 15_800, "19m SW"),
+            new Marker(17_480, 17_900, "16m SW"), new Marker(18_900, 19_020, "15m SW"),
+            new Marker(21_450, 21_850, "13m SW"), new Marker(25_670, 26_100, "11m SW"),
+            new Marker(65_000, 74_000, "OIRT FM"), new Marker(74_000, 86_000, "JAPAN FM"),
+            new Marker(86_000, 108_000, "FM BROADCAST"),
+            new Marker(108_000, 118_000, "VOR / ILS"),
+            new Marker(174_000, 240_000, "DAB BROADCAST"),
+            new Marker(1_089_500, 1_090_500, "ADS-B 1090")
+    };
     private static final int BINS = 160, ROWS = 68;
     private static final int SPECTRUM_WIDTH = 640, SPECTRUM_HEIGHT = 192;
     private static final int[] SPECTRUM_GRADIENT = new int[SPECTRUM_HEIGHT];
@@ -44,7 +60,9 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
     private EditBox frequencyInput, upperInput, lowerInput;
     private String rangeError = "";
     private int waterfallHead;
+    private int serviceScroll;
     private long lastFrame;
+    private long nextAdsbBurstAt, adsbBurstUntil;
     private int lastBand = -1, lastCenter, lastSpan;
     private boolean compact;
     private DynamicTexture spectrumTexture, waterfallTexture;
@@ -64,21 +82,19 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
         addRenderableWidget(Button.builder(Component.literal("X"), b -> onClose())
                 .bounds(x + imageWidth - 29, y + 8, 20, 18).build());
         int controlY = y + imageHeight - 30;
-        int step = compact ? (imageWidth - 16) / 7 : 0;
-        addRenderableWidget(Button.builder(Component.literal("BAND"), b -> click(0))
-                .bounds(x + (compact ? 8 : 10), controlY, compact ? step - 3 : 52, 20).build());
+        int step = compact ? (imageWidth - 16) / 6 : 0;
         addRenderableWidget(Button.builder(Component.literal("TUNE -"), b -> click(1))
-                .bounds(x + (compact ? 8 + step : 67), controlY, compact ? step - 3 : 57, 20).build());
+                .bounds(x + (compact ? 8 : 10), controlY, compact ? step - 3 : 57, 20).build());
         addRenderableWidget(Button.builder(Component.literal("TUNE +"), b -> click(2))
-                .bounds(x + (compact ? 8 + step * 2 : 128), controlY, compact ? step - 3 : 57, 20).build());
+                .bounds(x + (compact ? 8 + step : 71), controlY, compact ? step - 3 : 57, 20).build());
         addRenderableWidget(Button.builder(Component.literal("SPAN -"), b -> click(3))
-                .bounds(x + (compact ? 8 + step * 3 : 190), controlY, compact ? step - 3 : 57, 20).build());
+                .bounds(x + (compact ? 8 + step * 2 : 132), controlY, compact ? step - 3 : 57, 20).build());
         addRenderableWidget(Button.builder(Component.literal("SPAN +"), b -> click(4))
-                .bounds(x + (compact ? 8 + step * 4 : 251), controlY, compact ? step - 3 : 57, 20).build());
+                .bounds(x + (compact ? 8 + step * 3 : 193), controlY, compact ? step - 3 : 57, 20).build());
         addRenderableWidget(Button.builder(Component.literal("BW -"), b -> click(5))
-                .bounds(x + (compact ? 8 + step * 5 : 313), controlY, compact ? step - 3 : 47, 20).build());
+                .bounds(x + (compact ? 8 + step * 4 : 254), controlY, compact ? step - 3 : 47, 20).build());
         addRenderableWidget(Button.builder(Component.literal("BW +"), b -> click(6))
-                .bounds(x + (compact ? 8 + step * 6 : 364), controlY, compact ? step - 3 : 47, 20).build());
+                .bounds(x + (compact ? 8 + step * 5 : 305), controlY, compact ? step - 3 : 47, 20).build());
         int inputY = compact ? controlY - 23 : controlY;
         frequencyInput = new EditBox(font, x + imageWidth - 157, inputY + 2, 93, 16,
                 Component.literal("Center MHz"));
@@ -117,7 +133,7 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
     private void setFrequency() {
         try {
             int khz = (int) Math.round(Double.parseDouble(frequencyInput.getValue()) * 1000);
-            if (khz >= 140 && khz <= 240_000) click(1_000_000 + khz);
+            if (SpectrumAnalyserState.bandFor(khz) >= 0) click(1_000_000 + khz);
         } catch (NumberFormatException ignored) { }
     }
 
@@ -183,6 +199,17 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
         SyncSpectrumPayload p = SpectrumAnalyserState.freshClient();
         int sx = leftPos + 52, sy = topPos + 42, sw = imageWidth - 70;
         int spectrumH = Math.max(55, (imageHeight - (compact ? 125 : 100)) * 52 / 100);
+        if (button == 0 && p != null && p.band() == 1 && !p.services().isEmpty()) {
+            int listTop = topPos + 42 + spectrumH + 27;
+            int listLeft = leftPos + imageWidth - 192;
+            int row = (int) (mouseY - listTop - 22) / 13;
+            if (mouseX >= listLeft && mouseX < leftPos + imageWidth - 20
+                    && mouseY >= listTop + 22 && row >= 0
+                    && row < Math.min(8, p.services().size() - serviceScroll)) {
+                click(2_000_000 + row + serviceScroll);
+                return true;
+            }
+        }
         if (button == 0 && p != null && mouseX >= sx && mouseX < sx + sw
                 && mouseY >= sy && mouseY < sy + spectrumH) {
             double fraction = (mouseX - sx) / sw;
@@ -191,12 +218,30 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
                 khz = DabChannel.byIndex(DabChannel.nearestIndexForFrequencyKhz(khz)).frequencyKhz();
             } else if (p.band() == 0) {
                 khz = Math.round(khz / 100f) * 100;
+            } else if (p.band() == 3) {
+                khz = Math.round(khz / 50f) * 50;
             }
-            khz = Math.clamp(khz, SpectrumAnalyserState.min(p.band()), SpectrumAnalyserState.max(p.band()));
-            click(1_000_000 + khz);
+            if (SpectrumAnalyserState.bandFor(khz) >= 0) click(1_000_000 + khz);
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        SyncSpectrumPayload p = SpectrumAnalyserState.freshClient();
+        if (p != null && p.band() == 1 && mouseX >= leftPos + imageWidth - 196
+                && mouseX < leftPos + imageWidth - 14 && mouseY >= topPos + 42 + Math.max(55,
+                (imageHeight - (compact ? 125 : 100)) * 52 / 100) + 27) {
+            serviceScroll = Math.clamp(serviceScroll + (scrollY < 0 ? 1 : -1), 0,
+                    Math.max(0, p.services().size() - 8));
+            return true;
+        }
+        if (scrollY != 0 && mouseX >= leftPos && mouseX < leftPos + imageWidth
+                && mouseY >= topPos && mouseY < topPos + imageHeight) {
+            click(scrollY > 0 ? 2 : 1);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     private void advance(SyncSpectrumPayload p) {
@@ -206,9 +251,21 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
             java.util.Arrays.fill(waterfallValid, false);
             for (int i = 0; i < BINS; i++) noise[i] = 0;
             lastFrame = 0;
+            nextAdsbBurstAt = 0;
+            adsbBurstUntil = 0;
         }
         if (now - lastFrame < 90) return;
         lastFrame = now;
+        if (p.band() == 4 && p.adsbContacts() > 0) {
+            if (nextAdsbBurstAt == 0) nextAdsbBurstAt = now + adsbIntervalMs(p.adsbContacts());
+            if (now >= nextAdsbBurstAt) {
+                adsbBurstUntil = now + 105;
+                nextAdsbBurstAt = now + adsbIntervalMs(p.adsbContacts());
+            }
+        } else {
+            nextAdsbBurstAt = 0;
+            adsbBurstUntil = 0;
+        }
         double floor = p.noiseTenths() / 10.0;
         double start = p.centerKhz() - p.spanKhz() / 2.0;
         double binWidth = p.spanKhz() / (double) BINS;
@@ -250,6 +307,15 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
                     double sideMovement = 0.18 * motion * Math.min(1, sampledDelta / half);
                     shape = Math.exp(-Math.pow(sampledDelta / (half * 0.72), 2)) * (1 + sideMovement);
                     shape += 0.14 * Math.exp(-Math.pow((sampledDelta - half * 1.4) / (half * 0.3), 2));
+                } else if (c.kind() == 3) {
+                    // Narrow continuous VOR carrier with shallow modulation sidebands.
+                    shape = 0.9 * Math.exp(-Math.pow(sampledDelta / 7.0, 2))
+                            + 0.22 * Math.exp(-Math.pow((sampledDelta - 12) / 6.0, 2));
+                } else if (c.kind() == 4) {
+                    // A packet appears briefly across the occupied channel; arrival time is
+                    // random and scales with how many transponders the receiver can hear.
+                    shape = now < adsbBurstUntil && sampledDelta <= half
+                            ? 0.72 + 0.25 * Math.pow(Math.cos(sampledDelta * 0.045), 2) : 0.0;
                 } else {
                     // DAB and DRM have flat occupied bandwidth with steep skirts.
                     shape = sampledDelta <= half * 0.92 ? 1.0
@@ -258,7 +324,7 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
                 shape = Math.clamp(shape, 0, 1);
                 carrierPeak |= shape >= 0.95;
                 double multipath = 0;
-                if (echoCount > 0 && c.kind() != 0 && strength > floor + 3 && sampledDelta <= half) {
+                if (echoCount > 0 && (c.kind() == 1 || c.kind() == 2) && strength > floor + 3 && sampledDelta <= half) {
                     for (int echo = 0; echo < echoCount; echo++) {
                         boolean hole = (echo & 1) == 0;
                         double spikeWidth = Math.max(binWidth * (hole ? 1.3 : 0.9),
@@ -285,6 +351,12 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
         waterfallValid[waterfallHead] = true;
         waterfallHead = (waterfallHead + 1) % ROWS;
         uploadTextures(p);
+    }
+
+    private long adsbIntervalMs(int contacts) {
+        double packetsPerSecond = Math.min(8.0, Math.max(1, contacts) * 0.7);
+        return Math.max(120, (long) (-Math.log(Math.max(1e-6, random.nextDouble()))
+                * 1_000.0 / packetsPerSecond));
     }
 
     private static int blend(int a, int b, double t) {
@@ -410,6 +482,24 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
         }
         if (waterfallId != null) g.blit(waterfallId, sx, wy, sw, wh, 0f, 0f, BINS, ROWS, BINS, ROWS);
         g.fill(sx + sw / 2, wy, sx + sw / 2 + 1, wy + wh, 0x88FFD343);
+        double start = p.centerKhz() - p.spanKhz() / 2.0;
+        int markerY = sy + spectrumH - 9;
+        for (Marker marker : MARKERS) {
+            if (marker.to <= start || marker.from >= start + p.spanKhz()) continue;
+            int from = sx + (int) Math.round((Math.max(start, marker.from) - start) * sw / p.spanKhz());
+            int to = sx + (int) Math.round((Math.min(start + p.spanKhz(), marker.to) - start) * sw / p.spanKhz());
+            g.fill(from, markerY, Math.max(from + 1, to), markerY + 2, 0xFFFF2828);
+            int labelWidth = font.width(marker.label);
+            if (to - from >= labelWidth + 14) {
+                int tabLeft = (from + to - labelWidth - 12) / 2;
+                g.fill(tabLeft, markerY - 7, tabLeft + labelWidth + 12, markerY + 7, 0xFFFF2828);
+                g.drawString(font, marker.label, tabLeft + 6, markerY - 5, 0xFFFFFFFF, false);
+            }
+        }
+        if (p.band() == 1 && !p.services().isEmpty()) {
+            int lx = x + imageWidth - 192;
+            g.fill(lx - 4, wy + 2, right - 14, Math.min(wy + wh, wy + 27 + Math.min(8, p.services().size()) * 13), 0xEB071321);
+        }
     }
 
     @Override protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
@@ -428,7 +518,9 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
             g.drawString(font, "Waiting for RF readings...", 54, 51, 0xFFB8C3D4, false);
             return;
         }
-        String band = p.band() == 0 ? "FM" : p.band() == 1 ? "DAB" : "DRM";
+        String band = switch (p.band()) {
+            case 0 -> "FM"; case 1 -> "DAB"; case 2 -> "DRM"; case 3 -> "VOR"; default -> "ADS-B";
+        };
         if (compact) {
             g.drawString(font, String.format(Locale.ROOT, "%s %.3f MHz  S%d  BW%d",
                     band, p.centerKhz() / 1000.0, p.spanKhz(), p.bandwidthKhz()),
@@ -440,8 +532,8 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
             g.drawString(font, String.format(Locale.ROOT, "RF %.1f dBuV  NOISE %.1f dBuV",
                     p.capturedTenths() / 10.0, p.noiseTenths() / 10.0),
                     54, 31, 0xFFFFDD79, false);
-            g.drawString(font, p.band() == 0 && !p.audioUrl().isBlank() ? "FM AUDIO"
-                    : p.signalPresent() && p.band() != 0 ? "SIGNAL" : "STATIC",
+            g.drawString(font, !p.audioUrl().isBlank() ? "AUDIO"
+                    : p.signalPresent() ? "SIGNAL" : "STATIC",
                     imageWidth - 100, 31, 0xFFB7D7EE, false);
         }
         if (p.band() == 0) renderRds(g, p.rds());
@@ -457,7 +549,22 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
             g.drawString(font, String.format(Locale.ROOT, "%.3f", freq), px - (n == 4 ? 32 : 0), axisY,
                     0xFFAFB7C7, false);
         }
-        g.drawString(font, "WATERFALL", 12, axisY + 17, 0xFFA2B9DD, false);
+        int waterfallY = 42 + spectrumH + 27;
+        if (!p.serviceInfo().isBlank())
+            g.drawString(font, font.plainSubstrByWidth(p.serviceInfo(),
+                            p.band() == 1 ? imageWidth - 265 : imageWidth - 80),
+                    56, waterfallY + 5, 0xFFE6F4FF, true);
+        if (p.band() == 1 && !p.services().isEmpty()) {
+            int lx = imageWidth - 192;
+            g.drawString(font, "SERVICES (click to listen)", lx, waterfallY + 7, 0xFF95CBEF, false);
+            serviceScroll = Math.clamp(serviceScroll, 0, Math.max(0, p.services().size() - 8));
+            for (int i = 0; i < Math.min(8, p.services().size() - serviceScroll); i++) {
+                SyncSpectrumPayload.Service service = p.services().get(i + serviceScroll);
+                int color = service.selected() ? 0xFFFFDD79 : 0xFFE2F0FF;
+                g.drawString(font, font.plainSubstrByWidth(service.label() + "  " + service.detail(), 168),
+                        lx, waterfallY + 22 + i * 13, color, false);
+            }
+        }
     }
 
     private void renderRds(GuiGraphics g, SyncSpectrumPayload.RdsReading rds) {

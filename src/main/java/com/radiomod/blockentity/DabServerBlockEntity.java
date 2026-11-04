@@ -25,6 +25,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
 public class DabServerBlockEntity extends BlockEntity {
+    @Override public void setChanged() {
+        super.setChanged();
+        SignalNetwork.markChanged(level);
+    }
     private static final String KEY_ENSEMBLES = "Ensembles";
     private static final String KEY_NAME = "Name";
     private static final String KEY_MUX_ID = "MuxId";
@@ -289,6 +293,7 @@ public class DabServerBlockEntity extends BlockEntity {
         super.onLoad();
         if (level != null) {
             DabServerNetwork.register(level, getBlockPos());
+            SignalNetwork.markChanged(level);
             TransmitterChunkLoading.forceChunkForDabServer(level, getBlockPos());
         }
     }
@@ -297,6 +302,7 @@ public class DabServerBlockEntity extends BlockEntity {
     public void setRemoved() {
         if (level != null) {
             DabServerNetwork.unregister(level, getBlockPos());
+            SignalNetwork.markChanged(level);
         }
         super.setRemoved();
     }

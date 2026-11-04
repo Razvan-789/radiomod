@@ -54,7 +54,10 @@ public class RegistryMenu extends AbstractContainerMenu {
                 }
             }
             case "page" -> page = Math.max(0, request.value());
-            case "country" -> RegistryCountries.get(player.getServer()).set(request.value(), request.text());
+            case "country" -> {
+                RegistryCountries.get(player.getServer()).set(request.value(), request.text());
+                for (ServerLevel level : player.getServer().getAllLevels()) SignalNetwork.markChanged(level);
+            }
             case "refresh" -> { }
             default -> { return; }
         }

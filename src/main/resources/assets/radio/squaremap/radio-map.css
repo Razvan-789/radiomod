@@ -1,0 +1,23 @@
+#radio-map-panel {position:fixed;top:14px;right:14px;z-index:10000;width:min(450px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:hidden;background:#fffef1;color:#16222c;box-shadow:0 8px 28px #0008;border:1px solid #67818c;border-radius:8px;font:14px/1.35 system-ui,sans-serif;pointer-events:auto}
+#radio-map-panel * {box-sizing:border-box}
+#radio-map-panel .radio-map-title {background:#ffe4bc;padding:8px 12px;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+#radio-map-collapse {border:0;background:#d6ad6f;border-radius:5px;min-width:25px;cursor:pointer;font-size:17px}
+#radio-map-body {padding:8px 10px 10px}
+.radio-map-closed #radio-map-body {display:none}
+.radio-map-row {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:7px}
+.radio-map-row label {display:flex;flex-direction:column;gap:2px;font-size:12px;font-weight:600}
+.radio-map-row input,.radio-map-row select {width:100%;height:28px;padding:3px 6px;background:white;border:1px solid #9caab2;border-radius:4px;color:#16222c;font:14px system-ui,sans-serif}
+.radio-map-summary {text-align:center;padding:5px;font-weight:700;border-top:1px dashed #a0aab0}
+.radio-map-head,.radio-map-station {display:grid;grid-template-columns:68px minmax(0,1fr) 67px 58px;gap:5px;align-items:center}
+.radio-map-head {padding:4px 6px;background:#e5edf1;font-weight:700}
+#radio-rows {max-height:min(48vh,500px);overflow:auto}
+.radio-map-location {text-align:center;font-weight:700;padding:5px;background:#fffbea}
+.radio-map-station {width:100%;padding:5px 6px;background:#d9f6bf;border-top:1px solid #bfdca8;text-align:left;color:#123647;font:13px system-ui,sans-serif}
+.radio-map-station:hover {background:#c9efa9}
+.radio-map-station span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.radio-map-station small {font-size:10px;color:#42616d}
+.radio-map-erp {padding:3px 2px;border:1px solid #6eaa58;border-radius:4px;background:#f4ffe8;color:#123647;text-align:right;font:600 13px system-ui,sans-serif;cursor:pointer}
+.radio-map-erp:hover,.radio-map-erp:focus {background:#bceca0;outline:1px solid #63a336}
+.radio-map-erp.active {background:#538e43;color:white}
+.radio-map-hint {padding-top:7px;color:#536872;font-size:11px}
+@media(max-width:600px) {#radio-map-panel {top:6px;right:6px;width:min(390px,calc(100vw - 12px))}#radio-rows {max-height:38vh}}

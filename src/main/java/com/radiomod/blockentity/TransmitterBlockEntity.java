@@ -517,6 +517,11 @@ public class TransmitterBlockEntity extends BlockEntity {
         level.sendBlockUpdated(worldPosition, state, state, 3);
     }
 
+    @Override public void setChanged() {
+        super.setChanged();
+        SignalNetwork.markChanged(level);
+    }
+
     private static int parseIntSafe(String value, int fallback) {
         try {
             return Integer.parseInt(value);

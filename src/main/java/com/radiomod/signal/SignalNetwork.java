@@ -44,4 +44,9 @@ public final class SignalNetwork {
     public static synchronized long revision(Level level) {
         return REVISIONS.getOrDefault(level, 0L);
     }
+
+    /** Broadcast metadata or RF configuration changed without a transmitter being placed/removed. */
+    public static synchronized void markChanged(Level level) {
+        if (level != null && !level.isClientSide()) REVISIONS.merge(level, 1L, Long::sum);
+    }
 }

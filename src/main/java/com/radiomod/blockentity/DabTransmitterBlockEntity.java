@@ -18,6 +18,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
 public class DabTransmitterBlockEntity extends BlockEntity {
+    @Override public void setChanged() {
+        super.setChanged();
+        SignalNetwork.markChanged(level);
+    }
     private static final String KEY_FREQUENCY_KHZ = "FrequencyKhz";
     private static final String KEY_POWER_W = "PowerW";
     private static final String KEY_ANTENNA_POS = "AntennaPos";

@@ -32,8 +32,13 @@ public final class SpectrumAnalyserAudio {
             WebTabletAudio.get().stop();
         } else if (sample.band() == 0) {
             playFm(minecraft, sample);
-        } else if (!sample.signalPresent()) {
-            WebTabletAudio.get().play(minecraft, false, false, 0, 0, "", "");
+        } else if (sample.band() == 1 || sample.band() == 2) {
+            if (sample.signalPresent() && !sample.audioUrl().isBlank())
+                WebTabletAudio.get().play(minecraft, true, true, sample.tunedSignalTenths() / 10.0,
+                        sample.snrTenths() / 10.0, sample.audioUrl(), sample.sourceUrl());
+            else if (!sample.signalPresent())
+                WebTabletAudio.get().play(minecraft, false, false, 0, 0, "", "");
+            else WebTabletAudio.get().stop();
         } else {
             WebTabletAudio.get().stop();
         }

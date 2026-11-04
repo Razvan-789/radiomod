@@ -790,9 +790,17 @@ public class Radio {
 
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
+        if (net.neoforged.fml.ModList.get().isLoaded("squaremap"))
+            com.radiomod.server.SquaremapIntegration.stop();
         AudioRelayManager.stopAll();
         AudioUploadManager.clear();
         ServerAudioProxy.stop();
+    }
+
+    @SubscribeEvent
+    public void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
+        if (net.neoforged.fml.ModList.get().isLoaded("squaremap"))
+            com.radiomod.server.SquaremapIntegration.tick(event.getServer());
     }
 
     @SubscribeEvent

@@ -14,8 +14,10 @@ import net.minecraft.resources.ResourceLocation;
 public record SyncSpectrumPayload(int band, int centerKhz, int spanKhz, int bandwidthKhz,
         int noiseTenths, int capturedTenths, int overheadBlocks, List<Carrier> carriers,
         boolean signalPresent, int tunedSignalTenths, int snrTenths,
-        String audioUrl, String sourceUrl, RdsReading rds) implements CustomPacketPayload {
+        String audioUrl, String sourceUrl, RdsReading rds, String serviceInfo,
+        List<Service> services, int adsbContacts) implements CustomPacketPayload {
     public record Carrier(int frequencyKhz, int widthKhz, int signalTenths, int kind) { }
+    public record Service(String label, String detail, boolean selected) { }
     public record RdsReading(boolean present, boolean decoded, int berPercent,
             String pi, String ps, String rt, int pty, String group, boolean tp) {
         public static final RdsReading EMPTY = new RdsReading(false, false, 100,
@@ -44,6 +46,15 @@ public record SyncSpectrumPayload(int band, int centerKhz, int spanKhz, int band
         ByteBufCodecs.stringUtf8(16).encode(b, p.rds.ps);
         ByteBufCodecs.stringUtf8(256).encode(b, p.rds.rt);
         ByteBufCodecs.stringUtf8(4).encode(b, p.rds.group);
+        ByteBufCodecs.stringUtf8(512).encode(b, p.serviceInfo);
+        b.writeByte(Math.min(32, p.services.size()));
+        for (int i = 0; i < Math.min(32, p.services.size()); i++) {
+            Service service = p.services.get(i);
+            ByteBufCodecs.stringUtf8(256).encode(b, service.label);
+            ByteBufCodecs.stringUtf8(256).encode(b, service.detail);
+            b.writeBoolean(service.selected);
+        }
+        b.writeByte(Math.clamp(p.adsbContacts, 0, 64));
     }
 
     private static SyncSpectrumPayload read(ByteBuf b) {
@@ -51,7 +62,7 @@ public record SyncSpectrumPayload(int band, int centerKhz, int spanKhz, int band
         int bandwidth = b.readInt(), noise = b.readInt(), captured = b.readInt();
         int overhead = b.readUnsignedByte();
         int count = b.readUnsignedByte();
-        if (band > 2 || overhead > 64 || count > 64) throw new IllegalArgumentException("Invalid spectrum packet");
+        if (band > 4 || overhead > 64 || count > 64) throw new IllegalArgumentException("Invalid spectrum packet");
         List<Carrier> carriers = new ArrayList<>(count);
         for (int i = 0; i < count; i++)
             carriers.add(new Carrier(b.readInt(), b.readUnsignedShort(), b.readShort(), b.readUnsignedByte()));
@@ -65,8 +76,16 @@ public record SyncSpectrumPayload(int band, int centerKhz, int spanKhz, int band
                 ByteBufCodecs.stringUtf8(8).decode(b), ByteBufCodecs.stringUtf8(16).decode(b),
                 ByteBufCodecs.stringUtf8(256).decode(b), pty,
                 ByteBufCodecs.stringUtf8(4).decode(b), tp);
+        String info = ByteBufCodecs.stringUtf8(512).decode(b);
+        int serviceCount = b.readUnsignedByte();
+        if (serviceCount > 32) throw new IllegalArgumentException("Invalid spectrum services");
+        List<Service> services = new ArrayList<>(serviceCount);
+        for (int i = 0; i < serviceCount; i++) services.add(new Service(
+                ByteBufCodecs.stringUtf8(256).decode(b), ByteBufCodecs.stringUtf8(256).decode(b), b.readBoolean()));
+        int adsbContacts = b.readUnsignedByte();
+        if (adsbContacts > 64) throw new IllegalArgumentException("Invalid ADS-B contact count");
         return new SyncSpectrumPayload(band, center, span, bandwidth, noise, captured, overhead,
-                List.copyOf(carriers), signal, tuned, snr, audio, source, rds);
+                List.copyOf(carriers), signal, tuned, snr, audio, source, rds, info, List.copyOf(services), adsbContacts);
     }
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }

@@ -14,6 +14,10 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 public class DrmTransmitterBlockEntity extends BlockEntity {
+    @Override public void setChanged() {
+        super.setChanged();
+        SignalNetwork.markChanged(level);
+    }
     private int frequencyKhz = 1000, powerW = 50, mode, bandwidthKhz = 10;
     private String streamUrl = "", imageUrl = "", serviceLabel = "DRM Service", shortLabel = "DRM", textMessage = "";
     @Nullable private BlockPos antennaPos;
