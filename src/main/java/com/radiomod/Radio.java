@@ -791,7 +791,7 @@ public class Radio {
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
         if (net.neoforged.fml.ModList.get().isLoaded("squaremap"))
-            com.radiomod.server.SquaremapIntegration.stop();
+            SquaremapHooks.stop();
         AudioRelayManager.stopAll();
         AudioUploadManager.clear();
         ServerAudioProxy.stop();
@@ -800,7 +800,7 @@ public class Radio {
     @SubscribeEvent
     public void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
         if (net.neoforged.fml.ModList.get().isLoaded("squaremap"))
-            com.radiomod.server.SquaremapIntegration.tick(event.getServer());
+            SquaremapHooks.tick(event.getServer());
     }
 
     @SubscribeEvent
@@ -1437,5 +1437,30 @@ public class Radio {
             int mscState,
             DabTransmitterBlockEntity transmitter
     ) {
+    }
+
+    // Loaded only after NeoForge confirms Squaremap is present. The main mod class has
+    // no direct linkage to Squaremap's API when running without the integration.
+    private static final class SquaremapHooks {
+        private static boolean unavailable;
+
+        private static void tick(net.minecraft.server.MinecraftServer server) {
+            if (unavailable) return;
+            try {
+                com.radiomod.server.SquaremapIntegration.tick(server);
+            } catch (LinkageError error) {
+                unavailable = true;
+                LOGGER.warn("Squaremap integration disabled because its API is incompatible: {}", error.toString());
+            }
+        }
+
+        private static void stop() {
+            if (unavailable) return;
+            try {
+                com.radiomod.server.SquaremapIntegration.stop();
+            } catch (LinkageError error) {
+                LOGGER.warn("Could not stop Squaremap integration cleanly: {}", error.toString());
+            }
+        }
     }
 }
