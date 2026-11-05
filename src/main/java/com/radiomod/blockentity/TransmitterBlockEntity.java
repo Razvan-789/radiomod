@@ -3,13 +3,10 @@ package com.radiomod.blockentity;
 import com.radiomod.Radio;
 import com.radiomod.signal.RdsFrameData;
 import com.radiomod.signal.RdsGroups;
+import com.radiomod.signal.DynamicRadioTextResolver;
 import com.radiomod.signal.SignalNetwork;
 import com.radiomod.signal.SignalMath;
 import com.radiomod.server.TransmitterChunkLoading;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -68,8 +65,6 @@ public class TransmitterBlockEntity extends BlockEntity {
     private String rdsPtyn = "";
     private String rdsLongPs = "";
     private String streamUrl = "";
-    private long rtUrlLastFetchGameTime = -1;
-    private String rtUrlCachedText = "";
     private boolean directionalEnabled;
     private int directionDegrees;
     @Nullable
@@ -146,7 +141,10 @@ public class TransmitterBlockEntity extends BlockEntity {
             case "set_pin" -> rdsPin = sanitizeText(value, 16);
             case "set_rt" -> rdsRt = sanitizeAscii(value, 64);
             case "set_rt_url_mode" -> rdsRtUrlMode = Boolean.parseBoolean(value);
-            case "set_rt_url" -> rdsRtUrl = sanitizeText(value, 200);
+            case "set_rt_url" -> {
+                rdsRtUrl = sanitizeText(value, 200);
+                if (!rdsRtUrl.isBlank()) rdsRtUrlMode = true;
+            }
             case "set_oda_rtplus" -> rdsOdaRtPlus = Boolean.parseBoolean(value);
             case "set_oda_group" -> rdsOdaGroup = sanitizeText(value, 3);
             case "set_ct_enabled" -> rdsCtEnabled = Boolean.parseBoolean(value);
@@ -247,7 +245,7 @@ public class TransmitterBlockEntity extends BlockEntity {
     }
 
     public String getCurrentRtText(long gameTime) {
-        return rdsRtUrlMode ? fetchRtFromUrlCached(gameTime) : rdsRt;
+        return rdsRtUrlMode ? DynamicRadioTextResolver.text(rdsRtUrl) : rdsRt;
     }
 
     public String getCurrentPsFrame(long gameTime) {
@@ -281,8 +279,6 @@ public class TransmitterBlockEntity extends BlockEntity {
         }
         loadAdditional(settings, registries);
         streamUrl = com.radiomod.server.ServerAudioProxy.restartUploadedAudioClock(streamUrl);
-        rtUrlLastFetchGameTime = -1;
-        rtUrlCachedText = "";
         setChangedAndSync();
     }
 
@@ -306,7 +302,7 @@ public class TransmitterBlockEntity extends BlockEntity {
 
         String rt = "";
         if ("2A".equals(groupCode)) {
-            rt = rdsRtUrlMode ? fetchRtFromUrlCached(gameTime) : rdsRt;
+            rt = getCurrentRtText(gameTime);
         } else if ("4A".equals(groupCode) && rdsCtEnabled) {
             rt = "CT " + timeString;
         } else if ("15A".equals(groupCode)) {
@@ -328,37 +324,6 @@ public class TransmitterBlockEntity extends BlockEntity {
         int start = frameIndex * 8;
         int end = Math.min(source.length(), start + 8);
         return padRight(source.substring(start, end), 8);
-    }
-
-    private String fetchRtFromUrlCached(long gameTime) {
-        if (rdsRtUrl.isBlank()) {
-            return "";
-        }
-        if (rtUrlLastFetchGameTime >= 0 && gameTime - rtUrlLastFetchGameTime < 100L) {
-            return rtUrlCachedText;
-        }
-        rtUrlLastFetchGameTime = gameTime;
-        try {
-            URI uri = URI.create(rdsRtUrl);
-            String scheme = uri.getScheme();
-            if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
-                return rtUrlCachedText;
-            }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(uri.toURL().openStream(), StandardCharsets.UTF_8))) {
-                StringBuilder builder = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null && builder.length() < 256) {
-                    if (!builder.isEmpty()) {
-                        builder.append(' ');
-                    }
-                    builder.append(line);
-                }
-                rtUrlCachedText = sanitizeText(builder.toString(), 64);
-                return rtUrlCachedText;
-            }
-        } catch (Exception ignored) {
-            return rtUrlCachedText;
-        }
     }
 
     private List<Integer> getEnabledGroupIndices() {

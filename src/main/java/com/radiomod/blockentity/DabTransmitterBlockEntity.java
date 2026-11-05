@@ -47,6 +47,11 @@ public class DabTransmitterBlockEntity extends BlockEntity {
     private String ensembleName = "BLANK MUX A";
     @Nullable
     private BlockPos linkedServerPos;
+
+    @Nullable
+    public BlockPos getLinkedServerPos() {
+        return linkedServerPos;
+    }
     private int linkedEnsembleIndex;
     @Nullable
     private UUID linkedMuxId;

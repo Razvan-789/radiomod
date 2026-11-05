@@ -154,7 +154,7 @@ public class RdsConfigScreen extends Screen {
                 fieldA = addEditBox(x, y + 28, Math.max(120, rowWidth - setWidth - 4), "RT text (64 ASCII)", 64);
                 addRenderableWidget(Button.builder(Component.translatable("screen.radio.set"), b -> sendAction("set_rt", fieldA.getValue()))
                         .bounds(setX, y + 26, setWidth, 20).build());
-                fieldB = addEditBox(x, y + 54, Math.max(120, rowWidth - setWidth - 4), "RT URL (http/https)", 1024);
+                fieldB = addEditBox(x, y + 54, Math.max(120, rowWidth - setWidth - 4), "RT URL or TuneIn link", 1024);
                 addRenderableWidget(Button.builder(Component.translatable("screen.radio.set"), b -> sendAction("set_rt_url", fieldB.getValue()))
                         .bounds(setX, y + 52, setWidth, 20).build());
                 addRenderableWidget(Button.builder(Component.translatable("screen.radio.rds.url_mode.toggle"), b ->

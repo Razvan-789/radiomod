@@ -23,7 +23,7 @@ Radio Mod adds a radio system to Minecraft that currently includes FM, DAB/DAB+,
 ### Tools
 Radio Mod adds transmitter blocks, radios and other items. It also calculates each transmitter's signal based on the player's position. (this includes the distance from a transmitter, height and if the player is underground)
 
-**Linking Tool:** The linking tool is the universal tool for linking blocks together by shift right-clicking.
+**Linking Tool:** Use it to connect antennas to transmitters and receivers, DAB transmitters to servers, and ADS-B servers to receivers. While holding it in either hand, nearby confirmed links appear as colored lines: cyan for antenna links and amber for server links. The lines disappear as soon as you put the tool away.
 
 **Spectrum Analyser:** A receive-only handheld spectrum and waterfall display for DRM, FM, VOR, DAB/DAB+ and ADS-B. Right-click to open it. Enter a frequency in MHz and press SET, click the spectrum, use the tuning buttons or arrow keys, or scroll over the display to tune; crossing a band edge changes mode automatically. FM/OIRT tuning uses 100 kHz steps, DAB uses channel steps, DRM uses 5 kHz, and VOR uses 50 kHz. SPAN controls the displayed frequency range; BW sets receive bandwidth. The frequency axis marks LW/MW/shortwave broadcast ranges, OIRT/Japanese/standard FM, VOR/ILS, DAB and 1090 MHz ADS-B. VOR carriers are continuous; ADS-B shows brief, randomly spaced data bursts whose frequency increases with the number of receivable transponders. Band ranges appear as red lines with inset labels along the bottom of the spectrum. Enter upper and lower signal limits in dBµV and press APPLY to set the spectrum scale and waterfall colors; leave either field blank to keep that limit automatic, or press AUTO to reset both. Clicking a received DRM carrier shows its service label, mode, bitrate and text, and plays its audio. Clicking a received DAB ensemble shows its multiplex, error correction, TII code and station list; click a station to hear it and see its bitrate and SID. FM plays its tuned station with static that follows reception quality: a narrow bandwidth adds static even on strong stations, while a wide bandwidth adds static to weaker ones. FM playback continues after closing the analyser screen while the item remains in the player's inventory or hotbar and FM is selected. On FM, PI, PS, RT, PTY and the last decoded RDS group appear at the top of the spectrum; PS and RT fill in as their groups arrive, and high BER makes decoding slower or unavailable. DAB and DRM play static only when the tuned signal is unavailable. When blocks cover the player's head, digital carriers show moving multipath peaks and deeper holes that leave bright and dark diagonal trails in the waterfall. The dashed lines mark the selected bandwidth, and the RF reading reflects how much of a station it captures. The server sends received signal and service data while the client draws the spectrum, noise and waterfall.
 
@@ -31,6 +31,7 @@ Radio Mod adds transmitter blocks, radios and other items. It also calculates ea
 - FM transmitters can be connected to antennas using the linking tool and support realistic RDS controls (by editing the groups)
 - FM signal gets weaker gradually and is affected by height and if you're underground (the number and type of blocks above you matters)
 - RDS is affected by the signal and its BER (Bit Error Rate) is simulated.
+- In the 2A RT URL field, paste a plain text URL, a TuneIn `nowPlaying` JSON URL, or a TuneIn station page link. Saving a URL enables RT URL mode automatically. The server reads `Header.Subtitle` in the background every 10 seconds; SSE sources with a JSON `title` field also work.
 - RDS Groups:
 
 | Group | Usage |
@@ -48,6 +49,7 @@ These are all based on real RDS groups. More information about RDS groups can be
 **DAB**
 - DAB Servers are required to create multiplexes and stations. DAB transmitters can then be linked to a server to broadcast a multiplex from that server.
 - DAB signals are more affected by blocks above the player than FM.
+- In a station's DLS URL mode, the DLS URL field accepts the same plain text, TuneIn JSON, TuneIn station page, and SSE sources as FM RT.
 
 **DRM**
 - DRM implementation is still in an early phase and **will contain bugs**

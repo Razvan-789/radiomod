@@ -93,7 +93,7 @@
   "screen.radio.dab_server.dls_text": "DLS Text",
   "screen.radio.dab_server.dls_text_hint": "Text shown by DLS",
   "screen.radio.dab_server.dls_url": "DLS URL",
-  "screen.radio.dab_server.dls_url_hint": "https://... (optional)",
+  "screen.radio.dab_server.dls_url_hint": "Text URL or TuneIn link",
   "screen.radio.dab_server.mot_url": "MOT Image URL",
   "screen.radio.dab_server.mot_url_hint": "https://.../image.png",
   "screen.radio.dab_server.stream_url": "Station Stream URL",

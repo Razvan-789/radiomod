@@ -87,6 +87,7 @@ import com.radiomod.network.SyncNavigatorPayload;
 import com.radiomod.network.NavigatorActionPayload;
 import com.radiomod.network.SyncVorPayload;
 import com.radiomod.network.SyncNavigatorHudPayload;
+import com.radiomod.network.SyncLinkLinesPayload;
 import com.radiomod.network.SetVorPayload;
 import com.radiomod.network.SyncFmReceptionPayload;
 import com.radiomod.network.SyncDx3CatalogPayload;
@@ -133,6 +134,7 @@ import com.radiomod.network.WebTabletActionPayload;
 import com.radiomod.network.SyncWebTabletPayload;
 import com.radiomod.server.AudioUploadManager;
 import com.radiomod.server.TransmitterPresets;
+import com.radiomod.server.LinkLineSnapshot;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -446,6 +448,8 @@ public class Radio {
         // Note that this is necessary if and only if we want *this* class (Radio) to respond directly to events.
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
+        if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient())
+            NeoForge.EVENT_BUS.addListener(com.radiomod.client.LinkLineRenderer::render);
         NeoForge.EVENT_BUS.addListener(com.radiomod.signal.AdsbReception::onChunkLoad);
         NeoForge.EVENT_BUS.addListener(com.radiomod.signal.AdsbReception::onChunkUnload);
         NeoForge.EVENT_BUS.addListener(TransmitterPresets::onPlayerClone);
@@ -459,6 +463,9 @@ public class Radio {
 
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToClient(SyncLinkLinesPayload.TYPE, SyncLinkLinesPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        com.radiomod.client.LinkLineRenderer.receive(payload)));
         registrar.playToClient(SyncNavigatorHudPayload.TYPE, SyncNavigatorHudPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         com.radiomod.signal.NavigatorHudState.set(payload)));
@@ -834,6 +841,9 @@ public class Radio {
         }
         if (RadioItem.isTechnisatSelected(player) && !TechnisatRadioItem.hasInInventory(player))
             RadioItem.setTechnisatSelected(player, false);
+        if (player.tickCount % 10 == 0 && (player.getMainHandItem().is(LINKING_TOOL_ITEM.get())
+                || player.getOffhandItem().is(LINKING_TOOL_ITEM.get())))
+            PacketDistributor.sendToPlayer(serverPlayer, LinkLineSnapshot.sample(serverPlayer));
         if ((player.tickCount % 5) != 0) {
             return;
         }
