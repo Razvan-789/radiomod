@@ -68,6 +68,8 @@ These are all based on real RDS groups. More information about RDS groups can be
 - DX3 Radio/Reciever (not based on a real radio, for FM/DAB)
 - DRM Radio/Reciever (for DRM)
 - Technisat DIGITRADIO 21 (based on the real version, for FM/DAB/DRM)
+- Pure The Bug (placeable DAB-only speaker): place it and right-click to open its display. Press SCAN to find regular DAB services from channels 5A–13F, MENU to view the saved station list, arrows and ENTER to select, and MUTE to silence the speaker. Its display shows the service label, DLS, channel, bitrate, signal bars and time. It ignores FM and DAB+ broadcasts.
+- Sony XDR-S41D (white and black handheld versions, for FM/DAB): right-click to open its blue display. DAB/FM switches modes. On FM, the arrows tune in 100 kHz steps and AUTO TUNE seeks the next station. On DAB, AUTO TUNE scans channels 5A–13F, pauses briefly at each receivable multiplex, counts services, and opens a selectable station list; MENU reopens the saved list. The Sony stays on its selected DAB channel and does not automatically switch to a linked channel. FM alternative-frequency switching is disabled. VOL mutes. FM displays decoded PS and RT; DAB displays the selected service label and DLS.
 
 **NOTE:** This project was made with the help of an AI agent.
 

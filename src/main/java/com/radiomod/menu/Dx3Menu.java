@@ -29,6 +29,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -82,7 +83,13 @@ public class Dx3Menu extends AbstractContainerMenu {
 
     public Dx3Menu(int containerId, Inventory inventory, Player player, Dx3ReceiverBlockEntity receiver,
                    boolean technisat) {
-        super(technisat ? Radio.TECHNISAT_RECEIVER_MENU.get() : Radio.DX3_RECEIVER_MENU.get(), containerId);
+        this(containerId, inventory, player, receiver, technisat,
+                technisat ? Radio.TECHNISAT_RECEIVER_MENU.get() : Radio.DX3_RECEIVER_MENU.get());
+    }
+
+    public Dx3Menu(int containerId, Inventory inventory, Player player, Dx3ReceiverBlockEntity receiver,
+                   boolean technisat, MenuType<?> menuType) {
+        super(menuType, containerId);
         this.player = player;
         receiverPos = receiver.getBlockPos();
         this.technisat = technisat;
@@ -95,7 +102,13 @@ public class Dx3Menu extends AbstractContainerMenu {
     }
 
     public Dx3Menu(int containerId, Inventory inventory, BlockPos receiverPos, boolean technisat) {
-        super(technisat ? Radio.TECHNISAT_RECEIVER_MENU.get() : Radio.DX3_RECEIVER_MENU.get(), containerId);
+        this(containerId, inventory, receiverPos, technisat,
+                technisat ? Radio.TECHNISAT_RECEIVER_MENU.get() : Radio.DX3_RECEIVER_MENU.get());
+    }
+
+    public Dx3Menu(int containerId, Inventory inventory, BlockPos receiverPos,
+                   boolean technisat, MenuType<?> menuType) {
+        super(menuType, containerId);
         player = inventory.player;
         this.receiverPos = receiverPos;
         this.technisat = technisat;

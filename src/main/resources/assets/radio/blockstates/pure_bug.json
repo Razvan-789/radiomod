@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "radio:block/pure_bug" },
+    "facing=east": { "model": "radio:block/pure_bug", "y": 90 },
+    "facing=south": { "model": "radio:block/pure_bug", "y": 180 },
+    "facing=west": { "model": "radio:block/pure_bug", "y": 270 }
+  }
+}

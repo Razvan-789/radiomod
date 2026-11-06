@@ -3,6 +3,7 @@ package com.radiomod.signal;
 import com.radiomod.blockentity.DabServerBlockEntity;
 import com.radiomod.blockentity.DabTransmitterBlockEntity;
 import com.radiomod.blockentity.Dx3ReceiverBlockEntity;
+import com.radiomod.blockentity.PureBugBlockEntity;
 import com.radiomod.blockentity.TransmitterBlockEntity;
 import com.radiomod.item.RadioItem;
 import com.radiomod.network.Dx3Station;
@@ -31,7 +32,7 @@ public final class Dx3ReceiverCatalog {
         double noise = SignalMath.calculateNoiseFloorDbuv(point);
         double loss = receiver.receiverLossDb();
         Map<String, Ranked> best = new HashMap<>();
-        for (BlockPos pos : SignalNetwork.getTransmitters(level)) {
+        if (!(receiver instanceof PureBugBlockEntity)) for (BlockPos pos : SignalNetwork.getTransmitters(level)) {
             if (!(level.getBlockEntity(pos) instanceof TransmitterBlockEntity fm)) continue;
             double signal = fmSignal(receiver, fm, point, overhead) - loss;
             if (signal < MIN_SIGNAL) continue;
@@ -48,6 +49,8 @@ public final class Dx3ReceiverCatalog {
         }
         for (DabSfnReception.Group group : DabSfnReception.scan(level, point, overhead, 0, false,
                 receiver.getAntennaPos(), receiver.getBlockPos())) {
+            if (receiver instanceof PureBugBlockEntity
+                    && group.transmitter().getDabVersion() != DabVersion.DAB) continue;
             double signal = group.signalDbuv() - loss;
             double snr = SignalMath.calculateDabSnrDb(signal, noise);
             if (signal < group.transmitter().getErrorCorrection().getMinimumSignalDbuv()
@@ -131,6 +134,8 @@ public final class Dx3ReceiverCatalog {
         double bestSnr = 0;
         for (DabSfnReception.Group group : DabSfnReception.scan(level, point, overhead, 0, false,
                 receiver.getAntennaPos(), receiver.getBlockPos())) {
+            if (receiver instanceof PureBugBlockEntity
+                    && group.transmitter().getDabVersion() != DabVersion.DAB) continue;
             if (DabChannel.nearestIndexForFrequencyKhz(group.frequencyKhz()) != receiver.getChannelIndex()
                     || !group.ensemble().name().equals(receiver.getMux())) continue;
             double signal = group.signalDbuv() - loss;

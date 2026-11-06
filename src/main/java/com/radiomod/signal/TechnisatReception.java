@@ -1,6 +1,7 @@
 package com.radiomod.signal;
 
 import com.radiomod.blockentity.TechnisatReceiverBlockEntity;
+import com.radiomod.blockentity.PureBugBlockEntity;
 import com.radiomod.blockentity.DrmTransmitterBlockEntity;
 import com.radiomod.network.Dx3Station;
 import java.util.Comparator;
@@ -31,6 +32,8 @@ public final class TechnisatReception {
         List<DabSfnReception.Group> groups = DabSfnReception.scan(receiver.getLevel(), point,
                 SignalMath.countOverheadBlocks(receiver.getLevel(), point), 0, false,
                 receiver.getAntennaPos(), receiver.getBlockPos());
+        if (receiver instanceof PureBugBlockEntity)
+            groups = groups.stream().filter(group -> group.transmitter().getDabVersion() == DabVersion.DAB).toList();
         return visible(scanned, groups, receiver.receiverLossDb(),
                 SignalMath.calculateNoiseFloorDbuv(point));
     }

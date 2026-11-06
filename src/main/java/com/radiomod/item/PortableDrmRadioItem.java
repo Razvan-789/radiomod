@@ -26,6 +26,7 @@ public class PortableDrmRadioItem extends Item {
         setSelected(player, true);
         RadioItem.setDx3Selected(player, false);
         RadioItem.setTechnisatSelected(player, false);
+        RadioItem.setSonySelected(player, false);
         if (!level.isClientSide()) player.openMenu(new SimpleMenuProvider(
                 (id, inventory, owner) -> new PortableDrmMenu(id, inventory),
                 Component.translatable("container.radio.portable_drm")));

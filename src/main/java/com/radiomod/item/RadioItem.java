@@ -38,6 +38,7 @@ public class RadioItem extends Item {
     private static final Map<UUID, String> PLAYER_DAB_STATION_MUX = new HashMap<>();
     private static final Map<UUID, Boolean> PLAYER_DX3_SELECTED = new HashMap<>();
     private static final Map<UUID, Boolean> PLAYER_TECHNISAT_SELECTED = new HashMap<>();
+    private static final Map<UUID, Boolean> PLAYER_SONY_SELECTED = new HashMap<>();
     private static final Map<UUID, String> PLAYER_DX3_FM_PI = new HashMap<>();
     private static final Map<UUID, String> PLAYER_DX3_LINK_ID = new HashMap<>();
     private static final Map<UUID, Integer> PLAYER_DX3_LINK_MODE = new HashMap<>();
@@ -65,6 +66,7 @@ public class RadioItem extends Item {
         ItemStack stack = player.getItemInHand(usedHand);
         setDx3Selected(player, false);
         setTechnisatSelected(player, false);
+        setSonySelected(player, false);
         if (getMode(player) == MODE_DRM) setMode(player, MODE_FM);
         PortableDrmRadioItem.setSelected(player, false);
         if (!level.isClientSide()) {
@@ -128,6 +130,14 @@ public class RadioItem extends Item {
 
     public static void setTechnisatSelected(Player player, boolean selected) {
         PLAYER_TECHNISAT_SELECTED.put(player.getUUID(), selected);
+    }
+
+    public static boolean isSonySelected(Player player) {
+        return PLAYER_SONY_SELECTED.getOrDefault(player.getUUID(), false);
+    }
+
+    public static void setSonySelected(Player player, boolean selected) {
+        PLAYER_SONY_SELECTED.put(player.getUUID(), selected);
     }
 
     public static String getDx3FmPi(Player player) {

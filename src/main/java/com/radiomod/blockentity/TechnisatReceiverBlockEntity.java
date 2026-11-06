@@ -12,6 +12,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 
 /** Fixed-position Technisat receiver; the scanned DAB list survives reopening and world saves. */
 public class TechnisatReceiverBlockEntity extends Dx3ReceiverBlockEntity {
@@ -23,7 +24,11 @@ public class TechnisatReceiverBlockEntity extends Dx3ReceiverBlockEntity {
     private int drmFrequencyKhz = 1000;
 
     public TechnisatReceiverBlockEntity(BlockPos pos, BlockState state) {
-        super(Radio.TECHNISAT_RECEIVER_BLOCK_ENTITY.get(), pos, state);
+        this(Radio.TECHNISAT_RECEIVER_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    protected TechnisatReceiverBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
 
     public List<Dx3Station> scannedStations() { return scanned; }

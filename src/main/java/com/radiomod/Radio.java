@@ -19,6 +19,7 @@ import com.radiomod.block.DabTransmitterBlock;
 import com.radiomod.block.TransmitterBlock;
 import com.radiomod.block.Dx3ReceiverBlock;
 import com.radiomod.block.TechnisatReceiverBlock;
+import com.radiomod.block.PureBugBlock;
 import com.radiomod.blockentity.AntennaBlockEntity;
 import com.radiomod.blockentity.LoopAntennaBlockEntity;
 import com.radiomod.blockentity.DrmTransmitterBlockEntity;
@@ -35,11 +36,13 @@ import com.radiomod.blockentity.DabTransmitterBlockEntity;
 import com.radiomod.blockentity.TransmitterBlockEntity;
 import com.radiomod.blockentity.Dx3ReceiverBlockEntity;
 import com.radiomod.blockentity.TechnisatReceiverBlockEntity;
+import com.radiomod.blockentity.PureBugBlockEntity;
 import com.radiomod.menu.DabServerMenu;
 import com.radiomod.menu.DrmTransmitterMenu;
 import com.radiomod.menu.DrmRadioMenu;
 import com.radiomod.menu.DabTransmitterMenu;
 import com.radiomod.item.DigitalRadioItem;
+import com.radiomod.item.SonyRadioItem;
 import com.radiomod.item.Dx3RadioItem;
 import com.radiomod.item.TechnisatRadioItem;
 import com.radiomod.item.LinkingToolItem;
@@ -91,6 +94,7 @@ import com.radiomod.network.SyncLinkLinesPayload;
 import com.radiomod.network.SetVorPayload;
 import com.radiomod.network.SyncFmReceptionPayload;
 import com.radiomod.network.SyncDx3CatalogPayload;
+import com.radiomod.network.SyncSonyScanPayload;
 import com.radiomod.network.SyncDx3PlayerPayload;
 import com.radiomod.network.SyncDx3LogoPayload;
 import com.radiomod.network.SelectDx3StationPayload;
@@ -230,6 +234,10 @@ public class Radio {
             () -> new TechnisatReceiverBlock(BlockBehaviour.Properties.of().strength(2.5F)));
     public static final DeferredItem<BlockItem> TECHNISAT_RECEIVER_BLOCK_ITEM =
             ITEMS.registerSimpleBlockItem("technisat_receiver", TECHNISAT_RECEIVER_BLOCK);
+    public static final DeferredBlock<Block> PURE_BUG_BLOCK = BLOCKS.register("pure_bug",
+            () -> new PureBugBlock(BlockBehaviour.Properties.of().strength(2.5F).noOcclusion()));
+    public static final DeferredItem<BlockItem> PURE_BUG_BLOCK_ITEM =
+            ITEMS.registerSimpleBlockItem("pure_bug", PURE_BUG_BLOCK);
     public static final DeferredBlock<Block> RECORDER_BLOCK = BLOCKS.register("recorder",
             () -> new RecorderBlock(BlockBehaviour.Properties.of().strength(2.5F)));
     public static final DeferredItem<BlockItem> RECORDER_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("recorder", RECORDER_BLOCK);
@@ -275,6 +283,8 @@ public class Radio {
     public static final DeferredItem<Item> RADIO_ITEM = ITEMS.register("radio", () -> new RadioItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> DIGITAL_RADIO_ITEM = ITEMS.register("digital_radio", () -> new DigitalRadioItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> BLACK_DIGITAL_RADIO_ITEM = ITEMS.register("black_digital_radio", () -> new DigitalRadioItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<Item> SONY_RADIO_ITEM = ITEMS.register("sony_xdr_s41d", () -> new SonyRadioItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<Item> BLACK_SONY_RADIO_ITEM = ITEMS.register("black_sony_xdr_s41d", () -> new SonyRadioItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> DX3_RADIO_ITEM = ITEMS.register("dx3_radio", () -> new Dx3RadioItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> TECHNISAT_RADIO_ITEM = ITEMS.register("technisat_radio",
             () -> new TechnisatRadioItem(new Item.Properties().stacksTo(1)));
@@ -307,6 +317,9 @@ public class Radio {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TechnisatReceiverBlockEntity>> TECHNISAT_RECEIVER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register("technisat_receiver", () -> BlockEntityType.Builder.of(
                     TechnisatReceiverBlockEntity::new, TECHNISAT_RECEIVER_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PureBugBlockEntity>> PURE_BUG_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pure_bug", () -> BlockEntityType.Builder.of(
+                    PureBugBlockEntity::new, PURE_BUG_BLOCK.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AntennaBlockEntity>> ANTENNA_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register("antenna", () -> BlockEntityType.Builder.of(AntennaBlockEntity::new, ANTENNA_BLOCK.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LoopAntennaBlockEntity>> LOOP_ANTENNA_BLOCK_ENTITY =
@@ -335,6 +348,13 @@ public class Radio {
             MENUS.register("radio", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new RadioMenu(containerId, inventory)));
     public static final DeferredHolder<MenuType<?>, MenuType<RadioMenu>> DIGITAL_RADIO_MENU =
             MENUS.register("digital_radio", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new RadioMenu(containerId, inventory)));
+    public static final DeferredHolder<MenuType<?>, MenuType<RadioMenu>> SONY_RADIO_MENU =
+            MENUS.register("sony_radio", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
+                    createSonyMenu(id, inventory)));
+
+    private static RadioMenu createSonyMenu(int id, Inventory inventory) {
+        return new RadioMenu(SONY_RADIO_MENU.get(), id, inventory, inventory.player, null);
+    }
     public static final DeferredHolder<MenuType<?>, MenuType<Dx3Menu>> DX3_MENU =
             MENUS.register("dx3_radio", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new Dx3Menu(containerId, inventory)));
     public static final DeferredHolder<MenuType<?>, MenuType<Dx3Menu>> DX3_RECEIVER_MENU =
@@ -346,6 +366,13 @@ public class Radio {
     public static final DeferredHolder<MenuType<?>, MenuType<Dx3Menu>> TECHNISAT_RECEIVER_MENU =
             MENUS.register("technisat_receiver", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
                     new Dx3Menu(id, inventory, buffer.readBlockPos(), true)));
+    public static final DeferredHolder<MenuType<?>, MenuType<Dx3Menu>> PURE_BUG_MENU =
+            MENUS.register("pure_bug", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
+                    createPureBugMenu(id, inventory, buffer.readBlockPos())));
+
+    private static Dx3Menu createPureBugMenu(int id, Inventory inventory, BlockPos pos) {
+        return new Dx3Menu(id, inventory, pos, true, PURE_BUG_MENU.get());
+    }
     public static final DeferredHolder<MenuType<?>, MenuType<SignalMeterMenu>> SIGNAL_METER_MENU =
             MENUS.register("signal_meter", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) -> new SignalMeterMenu(containerId, inventory)));
     public static final DeferredHolder<MenuType<?>, MenuType<SpectrumAnalyserMenu>> SPECTRUM_ANALYSER_MENU =
@@ -399,6 +426,8 @@ public class Radio {
                 output.accept(RADIO_ITEM.get());
                 output.accept(DIGITAL_RADIO_ITEM.get());
                 output.accept(BLACK_DIGITAL_RADIO_ITEM.get());
+                output.accept(SONY_RADIO_ITEM.get());
+                output.accept(BLACK_SONY_RADIO_ITEM.get());
                 output.accept(DX3_RADIO_ITEM.get());
                 output.accept(TECHNISAT_RADIO_ITEM.get());
                 output.accept(PORTABLE_DRM_RADIO_ITEM.get());
@@ -418,6 +447,7 @@ public class Radio {
                 output.accept(RECORDER_BLOCK_ITEM.get());
                 output.accept(DX3_RECEIVER_BLOCK_ITEM.get());
                 output.accept(TECHNISAT_RECEIVER_BLOCK_ITEM.get());
+                output.accept(PURE_BUG_BLOCK_ITEM.get());
                 output.accept(ANTENNA_BLOCK_ITEM.get());
                 output.accept(LOOP_ANTENNA_BLOCK_ITEM.get());
                 output.accept(DIRECTIONAL_ANTENNA_BLOCK_ITEM.get());
@@ -679,6 +709,12 @@ public class Radio {
                     }
                 })
         );
+        registrar.playToClient(SyncSonyScanPayload.TYPE, SyncSonyScanPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player().containerMenu instanceof RadioMenu menu
+                            && menu.containerId == payload.containerId())
+                        menu.setSonyScan(payload.scanned(), payload.stations());
+                }));
         registrar.playToClient(
                 SyncDx3PlayerPayload.TYPE,
                 SyncDx3PlayerPayload.STREAM_CODEC,
@@ -766,6 +802,7 @@ public class Radio {
             event.accept(DAB_TRANSMITTER_BLOCK_ITEM);
             event.accept(DAB_SERVER_BLOCK_ITEM);
             event.accept(DX3_RECEIVER_BLOCK_ITEM);
+            event.accept(PURE_BUG_BLOCK_ITEM);
             event.accept(ANTENNA_BLOCK_ITEM);
             event.accept(YAGI_3_ITEM);
             event.accept(YAGI_5_ITEM);
@@ -780,6 +817,8 @@ public class Radio {
             event.accept(RADIO_ITEM);
             event.accept(DIGITAL_RADIO_ITEM);
             event.accept(BLACK_DIGITAL_RADIO_ITEM);
+            event.accept(SONY_RADIO_ITEM);
+            event.accept(BLACK_SONY_RADIO_ITEM);
             event.accept(DX3_RADIO_ITEM);
             event.accept(SIGNAL_METER_ITEM);
             event.accept(SPECTRUM_ANALYSER_ITEM);
@@ -841,6 +880,8 @@ public class Radio {
         }
         if (RadioItem.isTechnisatSelected(player) && !TechnisatRadioItem.hasInInventory(player))
             RadioItem.setTechnisatSelected(player, false);
+        if (RadioItem.isSonySelected(player) && !SonyRadioItem.hasInInventory(player))
+            RadioItem.setSonySelected(player, false);
         if (player.tickCount % 10 == 0 && (player.getMainHandItem().is(LINKING_TOOL_ITEM.get())
                 || player.getOffhandItem().is(LINKING_TOOL_ITEM.get())))
             PacketDistributor.sendToPlayer(serverPlayer, LinkLineSnapshot.sample(serverPlayer));
@@ -994,7 +1035,7 @@ public class Radio {
         }
 
         FmSyncSample sample = findBestFmForPlayer(player.level(), player.position(), player);
-        if (!dx3Dab && !RadioItem.isTechnisatSelected(player)) {
+        if (!dx3Dab && !RadioItem.isTechnisatSelected(player) && !RadioItem.isSonySelected(player)) {
             autoRetuneDabForPlayer(player);
         }
         if (RadioItem.getMode(player) == RadioItem.MODE_DAB && !dx3Dab
@@ -1040,6 +1081,7 @@ public class Radio {
             if (inventory.items.get(i).is(BLACK_DIGITAL_RADIO_ITEM.get())) {
                 return true;
             }
+            if (inventory.items.get(i).is(SONY_RADIO_ITEM.get()) || inventory.items.get(i).is(BLACK_SONY_RADIO_ITEM.get())) return true;
             if (inventory.items.get(i).is(DX3_RADIO_ITEM.get())) {
                 return true;
             }
@@ -1055,6 +1097,7 @@ public class Radio {
             if (inventory.offhand.get(i).is(BLACK_DIGITAL_RADIO_ITEM.get())) {
                 return true;
             }
+            if (inventory.offhand.get(i).is(SONY_RADIO_ITEM.get()) || inventory.offhand.get(i).is(BLACK_SONY_RADIO_ITEM.get())) return true;
             if (inventory.offhand.get(i).is(DX3_RADIO_ITEM.get())) {
                 return true;
             }
@@ -1090,7 +1133,8 @@ public class Radio {
         maybeUpdateDecodedAfState(player, tunedFrequencyKhz, tunedSample);
         FmStationSample bestSample = tunedSample;
         int resolvedFrequencyKhz = tunedFrequencyKhz;
-        if (RadioItem.isAfEnabled(player) && RadioItem.hasDecodedAfStateForFrequency(player, tunedFrequencyKhz)) {
+        if (!RadioItem.isSonySelected(player) && RadioItem.isAfEnabled(player)
+                && RadioItem.hasDecodedAfStateForFrequency(player, tunedFrequencyKhz)) {
             int afFrequencyKhz = selectAlternativeFrequency(
                     level,
                     radioPosition,
@@ -1362,7 +1406,7 @@ public class Radio {
             }
 
             if (group.signalDbuv() > best.signalDbuv() + DAB_RETUNE_SWITCH_MARGIN_DBUV) {
-                best = dabSample(group);
+                best = dabSample(player, group);
                 bestChannelIndex = DabChannel.nearestIndexForFrequencyKhz(group.frequencyKhz());
             }
         }
@@ -1377,7 +1421,7 @@ public class Radio {
         DabSample best = null;
         for (DabSfnReception.Group group : DabSfnReception.scan(
                 player, overheadBlockCount, channelFrequencyKhz)) {
-            DabSample candidate = dabSample(group);
+            DabSample candidate = dabSample(player, group);
             if (best == null || candidate.signalDbuv() > best.signalDbuv()) {
                 best = candidate;
             }
@@ -1391,7 +1435,7 @@ public class Radio {
         DabSample best = null;
         for (DabSfnReception.Group group : DabSfnReception.scan(
                 player, overheadBlockCount, channelFrequencyKhz)) {
-            DabSample candidate = dabSample(group);
+            DabSample candidate = dabSample(player, group);
             if (candidate.mscState() > 0 && !candidate.streamUrl().isBlank()
                     && (best == null || candidate.signalDbuv() > best.signalDbuv())) {
                 best = candidate;
@@ -1400,10 +1444,10 @@ public class Radio {
         return best;
     }
 
-    private static DabSample dabSample(DabSfnReception.Group group) {
+    private static DabSample dabSample(Player player, DabSfnReception.Group group) {
         DabTransmitterBlockEntity transmitter = group.transmitter();
         DabServerBlockEntity.DabEnsembleDefinition linked = group.ensemble();
-        DabStationDefinition station = preferredStation(linked);
+        DabStationDefinition station = preferredStation(player, linked);
         String streamUrl = station == null ? "" : station.streamUrl();
         return new DabSample(group.signalDbuv(), group.snrDb(), linked.name(),
                 station == null ? "" : station.sid(), station == null ? "" : station.label(), streamUrl,
@@ -1412,9 +1456,16 @@ public class Radio {
     }
 
     @Nullable
-    private static DabStationDefinition preferredStation(DabServerBlockEntity.DabEnsembleDefinition ensemble) {
+    private static DabStationDefinition preferredStation(Player player,
+            DabServerBlockEntity.DabEnsembleDefinition ensemble) {
         if (ensemble.stations().isEmpty()) {
             return null;
+        }
+        if (RadioItem.isSonySelected(player) && !RadioItem.getDabStationSid(player).isBlank()) {
+            if (!ensemble.name().equals(RadioItem.getDabStationMux(player))) return null;
+            return ensemble.stations().stream()
+                    .filter(station -> station.sid().equals(RadioItem.getDabStationSid(player)))
+                    .findFirst().orElse(null);
         }
         for (DabStationDefinition station : ensemble.stations()) {
             if (!station.streamUrl().isBlank()) {

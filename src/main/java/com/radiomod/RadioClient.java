@@ -9,8 +9,10 @@ import com.radiomod.client.screen.DabServerScreen;
 import com.radiomod.client.screen.RecorderScreen;
 import com.radiomod.client.screen.DirectionalAntennaScreen;
 import com.radiomod.client.screen.RadioScreen;
+import com.radiomod.client.screen.SonyRadioScreen;
 import com.radiomod.client.screen.Dx3Screen;
 import com.radiomod.client.screen.TechnisatScreen;
+import com.radiomod.client.screen.PureBugScreen;
 import com.radiomod.client.screen.TransmitterScreen;
 import com.radiomod.client.screen.SignalMeterScreen;
 import com.radiomod.client.screen.SpectrumAnalyserScreen;
@@ -103,10 +105,12 @@ public class RadioClient {
                 Radio.DIGITAL_RADIO_MENU.get(),
                 (RadioMenu menu, Inventory inventory, Component title) -> new RadioScreen(menu, inventory, title, true)
         );
+        event.<RadioMenu, SonyRadioScreen>register(Radio.SONY_RADIO_MENU.get(), SonyRadioScreen::new);
         event.<Dx3Menu, Dx3Screen>register(Radio.DX3_MENU.get(), Dx3Screen::new);
         event.<Dx3Menu, Dx3Screen>register(Radio.DX3_RECEIVER_MENU.get(), Dx3Screen::new);
         event.<Dx3Menu, TechnisatScreen>register(Radio.TECHNISAT_MENU.get(), TechnisatScreen::new);
         event.<Dx3Menu, TechnisatScreen>register(Radio.TECHNISAT_RECEIVER_MENU.get(), TechnisatScreen::new);
+        event.<Dx3Menu, PureBugScreen>register(Radio.PURE_BUG_MENU.get(), PureBugScreen::new);
         event.<SignalMeterMenu, SignalMeterScreen>register(Radio.SIGNAL_METER_MENU.get(), SignalMeterScreen::new);
         event.<SpectrumAnalyserMenu, SpectrumAnalyserScreen>register(Radio.SPECTRUM_ANALYSER_MENU.get(), SpectrumAnalyserScreen::new);
         event.<RegistryMenu, RegistryScreen>register(Radio.REGISTRY_MENU.get(), RegistryScreen::new);
@@ -386,6 +390,7 @@ public class RadioClient {
                 return true;
             }
             if (inventory.items.get(i).is(Radio.TECHNISAT_RADIO_ITEM.get())) return true;
+            if (inventory.items.get(i).is(Radio.SONY_RADIO_ITEM.get()) || inventory.items.get(i).is(Radio.BLACK_SONY_RADIO_ITEM.get())) return true;
         }
         for (int i = 0; i < inventory.offhand.size(); i++) {
             if (inventory.offhand.get(i).is(Radio.RADIO_ITEM.get())) {
@@ -401,6 +406,7 @@ public class RadioClient {
                 return true;
             }
             if (inventory.offhand.get(i).is(Radio.TECHNISAT_RADIO_ITEM.get())) return true;
+            if (inventory.offhand.get(i).is(Radio.SONY_RADIO_ITEM.get()) || inventory.offhand.get(i).is(Radio.BLACK_SONY_RADIO_ITEM.get())) return true;
         }
         return false;
     }

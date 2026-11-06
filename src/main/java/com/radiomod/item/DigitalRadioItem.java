@@ -27,6 +27,7 @@ public class DigitalRadioItem extends RadioItem {
         ItemStack stack = player.getItemInHand(usedHand);
         setDx3Selected(player, false);
         setTechnisatSelected(player, false);
+        setSonySelected(player, false);
         PortableDrmRadioItem.setSelected(player, false);
         if (!level.isClientSide()) {
             setMode(player, MODE_FM);

@@ -59,6 +59,7 @@ public class TechnisatRadioItem extends RadioItem {
         PortableDrmRadioItem.setSelected(player, false);
         setDx3Selected(player, true);
         setTechnisatSelected(player, true);
+        setSonySelected(player, false);
         setDx3LinkId(player, "");
         if (!level.isClientSide()) player.openMenu(new SimpleMenuProvider((id, inventory, owner) ->
                 new Dx3Menu(id, inventory, owner, true),

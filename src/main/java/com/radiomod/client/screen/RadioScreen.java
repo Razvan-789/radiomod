@@ -557,6 +557,7 @@ public class RadioScreen extends AbstractContainerScreen<RadioMenu> {
         if (minecraft != null && minecraft.player != null) {
             RadioItem.setMode(minecraft.player, dabSupported && tab == Tab.DAB ? RadioItem.MODE_DAB : RadioItem.MODE_FM);
         }
+        sendButton(tab == Tab.DAB ? RadioMenu.BUTTON_MODE_DAB : RadioMenu.BUTTON_MODE_FM);
         updateTabVisibility();
     }
 

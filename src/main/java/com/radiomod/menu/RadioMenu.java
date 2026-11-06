@@ -6,20 +6,28 @@ import com.radiomod.signal.DabSfnReception;
 import com.radiomod.blockentity.TransmitterBlockEntity;
 import com.radiomod.item.DigitalRadioItem;
 import com.radiomod.item.RadioItem;
+import com.radiomod.item.SonyRadioItem;
+import com.radiomod.network.SyncSonyScanPayload;
 import com.radiomod.signal.DabChannel;
 import com.radiomod.signal.DabErrorCorrection;
+import com.radiomod.signal.DabDlsResolver;
 import com.radiomod.signal.MeteorScatter;
 import com.radiomod.signal.RdsFrameData;
 import com.radiomod.signal.RdsGroups;
 import com.radiomod.signal.SignalMath;
 import com.radiomod.signal.SignalNetwork;
 import java.util.Random;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.DataSlot;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -32,6 +40,11 @@ public class RadioMenu extends AbstractContainerMenu {
     public static final int BUTTON_DAB_CHANNEL_UP = 3;
     public static final int BUTTON_AF_TOGGLE = 4;
     public static final int BUTTON_STEP_MODE_TOGGLE = 5;
+    public static final int BUTTON_MODE_FM = 6;
+    public static final int BUTTON_MODE_DAB = 7;
+    public static final int BUTTON_AUTO_TUNE = 8;
+    public static final int BUTTON_SONY_SCAN = 9;
+    private static final int BUTTON_SONY_SELECT_BASE = 3_000_000;
     private static final int BUTTON_SET_FREQUENCY_BASE = 1_000_000;
     private static final int BUTTON_SET_DAB_CHANNEL_BASE = 2_000_000;
     private static final int RDS_PI_MAX = 4;
@@ -89,8 +102,23 @@ public class RadioMenu extends AbstractContainerMenu {
     private final DataSlot dabSupportedSlot;
     private final DataSlot digitalRadioStyleSlot;
     private final DataSlot blackDigitalRadioStyleSlot;
+    private final DataSlot blackSonyStyleSlot;
+    private final DataSlot dabLabelLengthSlot;
+    private final DataSlot[] dabLabelSlots;
+    private final DataSlot dabDlsLengthSlot;
+    private final DataSlot[] dabDlsSlots;
     private final DataSlot fmStepModeSlot;
     private final DataSlot afEnabledSlot;
+    private final DataSlot sonyScanningSlot;
+    private final DataSlot sonyScanChannelSlot;
+    private final DataSlot sonyScanCountSlot;
+    private List<SonyRadioItem.Station> sonyStations = List.of();
+    private boolean sonyScanned;
+    private boolean sonyScanning;
+    private boolean sonyScanSent;
+    private int sonyNextChannel;
+    private int sonyScanPauseTicks;
+    private int sonyScanStepTicks;
     private final Random rdsDecodeRandom;
     private String decodedGroupCode = "";
     private String decodedPi = "----";
@@ -113,7 +141,11 @@ public class RadioMenu extends AbstractContainerMenu {
     }
 
     public RadioMenu(int containerId, Inventory inventory, Player player, @Nullable ItemStack radioStack) {
-        super(Radio.RADIO_MENU.get(), containerId);
+        this(Radio.RADIO_MENU.get(), containerId, inventory, player, radioStack);
+    }
+
+    public RadioMenu(MenuType<?> type, int containerId, Inventory inventory, Player player, @Nullable ItemStack radioStack) {
+        super(type, containerId);
         this.player = player;
         this.radioStack = radioStack;
         this.rdsDecodeRandom = new Random(player.getUUID().getLeastSignificantBits() ^ ((long) containerId << 17));
@@ -158,8 +190,16 @@ public class RadioMenu extends AbstractContainerMenu {
         dabSupportedSlot = addDataSlot(DataSlot.standalone());
         digitalRadioStyleSlot = addDataSlot(DataSlot.standalone());
         blackDigitalRadioStyleSlot = addDataSlot(DataSlot.standalone());
+        blackSonyStyleSlot = addDataSlot(DataSlot.standalone());
+        dabLabelLengthSlot = addDataSlot(DataSlot.standalone());
+        dabLabelSlots = addCharSlots(32);
+        dabDlsLengthSlot = addDataSlot(DataSlot.standalone());
+        dabDlsSlots = addCharSlots(64);
         fmStepModeSlot = addDataSlot(DataSlot.standalone());
         afEnabledSlot = addDataSlot(DataSlot.standalone());
+        sonyScanningSlot = addDataSlot(DataSlot.standalone());
+        sonyScanChannelSlot = addDataSlot(DataSlot.standalone());
+        sonyScanCountSlot = addDataSlot(DataSlot.standalone());
 
         int initialFrequencyKhz = RadioItem.getFrequencyKhz(player);
         lastTunedFrequencyKhz = initialFrequencyKhz;
@@ -192,26 +232,44 @@ public class RadioMenu extends AbstractContainerMenu {
         dabSupportedSlot.set(isDabSupportedForCurrentRadio() ? 1 : 0);
         digitalRadioStyleSlot.set(isDigitalRadioItem() ? 1 : 0);
         blackDigitalRadioStyleSlot.set(radioStack != null && radioStack.is(Radio.BLACK_DIGITAL_RADIO_ITEM.get()) ? 1 : 0);
+        blackSonyStyleSlot.set(radioStack != null && radioStack.is(Radio.BLACK_SONY_RADIO_ITEM.get()) ? 1 : 0);
+        setStringSlots("", dabLabelLengthSlot, dabLabelSlots, 32);
+        setStringSlots("", dabDlsLengthSlot, dabDlsSlots, 64);
         fmStepModeSlot.set(RadioItem.getFmStepMode(player));
         if (!isDabSupported()) {
             RadioItem.setMode(player, RadioItem.MODE_FM);
         }
         afEnabledSlot.set(RadioItem.isAfEnabled(player) ? 1 : 0);
+        if (isSonyRadio() && !player.level().isClientSide()) {
+            sonyScanned = SonyRadioItem.hasScan(player);
+            sonyStations = SonyRadioItem.scannedStations(player);
+        }
+        sonyScanCountSlot.set(sonyStations.size());
         restoreDecodedRdsFromCache(initialFrequencyKhz);
     }
 
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (id >= BUTTON_SET_FREQUENCY_BASE) {
-            setFrequencyKhz(id - BUTTON_SET_FREQUENCY_BASE);
+        if (id >= BUTTON_SONY_SELECT_BASE) {
+            int index = id - BUTTON_SONY_SELECT_BASE;
+            if (!isSonyRadio() || !sonyScanned || index < 0 || index >= sonyStations.size()) return false;
+            SonyRadioItem.Station station = sonyStations.get(index);
+            setDabChannelIndex(station.channelIndex());
+            RadioItem.setDabStation(player, station.mux(), station.sid());
+            RadioItem.setMode(player, RadioItem.MODE_DAB);
+            broadcastChanges();
             return true;
         }
-
         if (id >= BUTTON_SET_DAB_CHANNEL_BASE) {
             if (!isDabSupported()) {
                 return false;
             }
             setDabChannelIndex(id - BUTTON_SET_DAB_CHANNEL_BASE);
+            return true;
+        }
+
+        if (id >= BUTTON_SET_FREQUENCY_BASE) {
+            setFrequencyKhz(id - BUTTON_SET_FREQUENCY_BASE);
             return true;
         }
 
@@ -239,6 +297,7 @@ public class RadioMenu extends AbstractContainerMenu {
                 yield true;
             }
             case BUTTON_AF_TOGGLE -> {
+                if (isSonyRadio()) yield false;
                 boolean nextAfEnabled = !RadioItem.isAfEnabled(player);
                 RadioItem.setAfEnabled(player, nextAfEnabled);
                 afEnabledSlot.set(nextAfEnabled ? 1 : 0);
@@ -252,6 +311,23 @@ public class RadioMenu extends AbstractContainerMenu {
                 broadcastChanges();
                 yield true;
             }
+            case BUTTON_MODE_FM, BUTTON_MODE_DAB -> {
+                if (id == BUTTON_MODE_DAB && !isDabSupported()) yield false;
+                RadioItem.setMode(player, id == BUTTON_MODE_DAB ? RadioItem.MODE_DAB : RadioItem.MODE_FM);
+                broadcastChanges();
+                yield true;
+            }
+            case BUTTON_AUTO_TUNE -> {
+                if (isSonyRadio() && RadioItem.getMode(player) == RadioItem.MODE_DAB)
+                    startSonyScan();
+                else setFrequencyKhz(findSeekFrequencyKhz(RadioItem.getFrequencyKhz(player), true));
+                yield true;
+            }
+            case BUTTON_SONY_SCAN -> {
+                if (!isSonyRadio()) yield false;
+                startSonyScan();
+                yield true;
+            }
             default -> false;
         };
     }
@@ -262,6 +338,87 @@ public class RadioMenu extends AbstractContainerMenu {
 
     public static int encodeSetDabChannelButtonId(int channelIndex) {
         return BUTTON_SET_DAB_CHANNEL_BASE + channelIndex;
+    }
+
+    public static int encodeSonySelectButtonId(int index) { return BUTTON_SONY_SELECT_BASE + index; }
+
+    private boolean isSonyRadio() {
+        return radioStack != null && radioStack.getItem() instanceof SonyRadioItem;
+    }
+
+    private void sendSonyScan() {
+        if (player instanceof ServerPlayer serverPlayer && serverPlayer.containerMenu == this) {
+            PacketDistributor.sendToPlayer(serverPlayer,
+                    new SyncSonyScanPayload(containerId, sonyScanned, sonyStations));
+            sonyScanSent = true;
+        }
+    }
+
+    private void startSonyScan() {
+        sonyStations = new ArrayList<>();
+        sonyScanned = false;
+        sonyScanning = true;
+        sonyNextChannel = 0;
+        sonyScanPauseTicks = 0;
+        sonyScanStepTicks = 0;
+        sonyScanningSlot.set(1);
+        sonyScanChannelSlot.set(0);
+        sonyScanCountSlot.set(0);
+        sendSonyScan();
+    }
+
+    private void tickSonyScan() {
+        if (!isSonyRadio()) return;
+        if (!sonyScanSent) sendSonyScan();
+        if (!sonyScanning || sonyScanPauseTicks-- > 0 || ++sonyScanStepTicks < 2) return;
+        sonyScanStepTicks = 0;
+        if (sonyNextChannel >= DabChannel.size()) {
+            sonyScanning = false;
+            sonyScanned = true;
+            sonyScanningSlot.set(0);
+            SonyRadioItem.storeScan(player, sonyStations);
+            sendSonyScan();
+            return;
+        }
+        int index = sonyNextChannel++;
+        sonyScanChannelSlot.set(index);
+        int overhead = SignalMath.countOverheadBlocks(player.level(), player.position());
+        boolean foundMux = false;
+        List<SonyRadioItem.Station> updated = new ArrayList<>(sonyStations);
+        for (DabSfnReception.Group group : DabSfnReception.scan(player, overhead,
+                DabChannel.byIndex(index).frequencyKhz())) {
+            if (group.frequencyKhz() != DabChannel.byIndex(index).frequencyKhz()) continue;
+            if (group.transmitter().getErrorCorrection().decodeState(
+                    group.signalDbuv(), group.snrDb(), 0.8) <= 0) continue;
+            if (group.ensemble().stations().isEmpty()) continue;
+            foundMux = true;
+            for (var service : group.ensemble().stations()) {
+                if (updated.size() >= 128) break;
+                SonyRadioItem.Station station = new SonyRadioItem.Station(index,
+                        group.ensemble().name(), service.sid(), service.label());
+                if (updated.stream().noneMatch(existing -> existing.channelIndex() == index
+                        && existing.mux().equals(station.mux()) && existing.sid().equals(station.sid())))
+                    updated.add(station);
+            }
+        }
+        if (updated.size() != sonyStations.size()) {
+            sonyStations = List.copyOf(updated);
+            sonyScanCountSlot.set(sonyStations.size());
+            sendSonyScan();
+        }
+        if (foundMux) sonyScanPauseTicks = 20;
+    }
+
+    public boolean isSonyScanning() { return sonyScanningSlot.get() > 0; }
+    public int getSonyScanChannel() { return sonyScanChannelSlot.get(); }
+    public int getSonyScanCount() { return sonyScanCountSlot.get(); }
+    public boolean hasSonyScan() { return sonyScanned; }
+    public List<SonyRadioItem.Station> getSonyStations() { return sonyStations; }
+    public void setSonyScan(boolean scanned, List<SonyRadioItem.Station> stations) {
+        if (player.level().isClientSide()) {
+            sonyScanned = scanned;
+            sonyStations = List.copyOf(stations);
+        }
     }
 
     private void setFrequencyKhz(int frequencyKhz) {
@@ -284,6 +441,8 @@ public class RadioMenu extends AbstractContainerMenu {
             return;
         }
         int clampedIndex = DabChannel.clampIndex(dabChannelIndex);
+        if (isSonyRadio() && clampedIndex != RadioItem.getDabChannelIndex(player))
+            RadioItem.setDabStation(player, "", "");
         RadioItem.setDabChannelIndex(player, clampedIndex);
         dabChannelSlot.set(clampedIndex);
         broadcastChanges();
@@ -341,6 +500,7 @@ public class RadioMenu extends AbstractContainerMenu {
     @Override
     public void broadcastChanges() {
         if (!player.level().isClientSide()) {
+            tickSonyScan();
             updateSignalReadings();
         }
         super.broadcastChanges();
@@ -395,10 +555,33 @@ public class RadioMenu extends AbstractContainerMenu {
 
         for (DabSfnReception.Group group : DabSfnReception.scan(
                 player, overheadBlockCount, dabChannel.frequencyKhz())) {
+            if (isSonyRadio() && !RadioItem.getDabStationSid(player).isBlank()
+                    && (!group.ensemble().name().equals(RadioItem.getDabStationMux(player))
+                    || group.ensemble().stations().stream().noneMatch(station ->
+                    station.sid().equals(RadioItem.getDabStationSid(player))))) continue;
             if (group.signalDbuv() > bestDabSignalDbuv) {
                 bestDabSignalDbuv = group.signalDbuv();
                 bestDabEc = group.transmitter().getErrorCorrection();
+                var mux = group.transmitter().resolveBroadcastMux();
+                if (mux != null && !mux.stations().isEmpty()) {
+                    var station = mux.stations().stream()
+                            .filter(candidate -> isSonyRadio()
+                                    && !RadioItem.getDabStationSid(player).isBlank()
+                                    ? mux.name().equals(RadioItem.getDabStationMux(player))
+                                    && candidate.sid().equals(RadioItem.getDabStationSid(player))
+                                    : !candidate.streamUrl().isBlank())
+                            .findFirst().orElse(mux.stations().getFirst());
+                    setStringSlots(station.label(), dabLabelLengthSlot, dabLabelSlots, 32);
+                    setStringSlots(DabDlsResolver.text(station), dabDlsLengthSlot, dabDlsSlots, 64);
+                } else {
+                    setStringSlots("", dabLabelLengthSlot, dabLabelSlots, 32);
+                    setStringSlots("", dabDlsLengthSlot, dabDlsSlots, 64);
+                }
             }
+        }
+        if (bestDabSignalDbuv <= -120.0) {
+            setStringSlots("", dabLabelLengthSlot, dabLabelSlots, 32);
+            setStringSlots("", dabDlsLengthSlot, dabDlsSlots, 64);
         }
 
         double noiseFloorDbuv = SignalMath.calculateNoiseFloorDbuv(radioPosition);
@@ -792,6 +975,10 @@ public class RadioMenu extends AbstractContainerMenu {
     public boolean isBlackDigitalRadioStyle() {
         return blackDigitalRadioStyleSlot.get() > 0;
     }
+
+    public boolean isBlackSonyStyle() { return blackSonyStyleSlot.get() > 0; }
+    public String getDabLabel() { return readString(dabLabelLengthSlot, dabLabelSlots); }
+    public String getDabDls() { return readString(dabDlsLengthSlot, dabDlsSlots); }
 
     public int getFmStepMode() {
         return fmStepModeSlot.get();

@@ -470,6 +470,7 @@ public final class FmAudioManager {
             if (inventory.items.get(i).is(Radio.BLACK_DIGITAL_RADIO_ITEM.get())) {
                 return true;
             }
+            if (inventory.items.get(i).is(Radio.SONY_RADIO_ITEM.get()) || inventory.items.get(i).is(Radio.BLACK_SONY_RADIO_ITEM.get())) return true;
             if (inventory.items.get(i).is(Radio.DX3_RADIO_ITEM.get())) {
                 return true;
             }
@@ -485,6 +486,7 @@ public final class FmAudioManager {
             if (inventory.offhand.get(i).is(Radio.BLACK_DIGITAL_RADIO_ITEM.get())) {
                 return true;
             }
+            if (inventory.offhand.get(i).is(Radio.SONY_RADIO_ITEM.get()) || inventory.offhand.get(i).is(Radio.BLACK_SONY_RADIO_ITEM.get())) return true;
             if (inventory.offhand.get(i).is(Radio.DX3_RADIO_ITEM.get())) {
                 return true;
             }

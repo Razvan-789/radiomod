@@ -22,6 +22,7 @@ public class Dx3RadioItem extends RadioItem {
         ItemStack stack = player.getItemInHand(usedHand);
         PortableDrmRadioItem.setSelected(player, false);
         RadioItem.setTechnisatSelected(player, false);
+        RadioItem.setSonySelected(player, false);
         if (RadioItem.getMode(player) == RadioItem.MODE_DRM) RadioItem.setMode(player, RadioItem.MODE_FM);
         if (!level.isClientSide()) {
             MenuProvider provider = new SimpleMenuProvider((containerId, inventory, menuPlayer) ->
