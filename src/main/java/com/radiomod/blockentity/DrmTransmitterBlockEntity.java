@@ -19,7 +19,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         SignalNetwork.markChanged(level);
     }
     private int frequencyKhz = 1000, powerW = 50, mode, bandwidthKhz = 10;
-    private String streamUrl = "", imageUrl = "", serviceLabel = "DRM Service", shortLabel = "DRM", textMessage = "";
+    private String streamUrl = "", imageUrl = "", serviceLabel = "DRM Service", shortLabel = "DRM", textMessage = "", lic = "";
     @Nullable private BlockPos antennaPos;
 
     public DrmTransmitterBlockEntity(BlockPos pos, BlockState state) {
@@ -35,6 +35,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
     public String getServiceLabel() { return serviceLabel; }
     public String getShortLabel() { return shortLabel; }
     public String getTextMessage() { return textMessage; }
+    public String getLic() { return lic; }
     @Nullable public BlockPos getAntennaPos() { return antennaPos; }
     public void setAntennaPos(@Nullable BlockPos pos) { antennaPos = pos == null ? null : pos.immutable(); setChanged(); }
     public boolean hasAntennaConnected() {
@@ -67,6 +68,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
             case "service" -> serviceLabel = limit(text, 64);
             case "short" -> shortLabel = limit(text, 16);
             case "message" -> textMessage = limit(text, 256);
+            case "lic" -> lic = limit(text, 16);
             default -> { return; }
         }
         setChanged();
@@ -97,6 +99,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         tag.putString("StreamUrl", streamUrl); tag.putString("ImageUrl", imageUrl);
         tag.putString("ServiceLabel", serviceLabel); tag.putString("ShortLabel", shortLabel);
         tag.putString("TextMessage", textMessage);
+        tag.putString("Lic", lic);
         if (antennaPos != null) tag.putLong("AntennaPos", antennaPos.asLong());
     }
     @Override protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
@@ -110,6 +113,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         serviceLabel = limit(tag.getString("ServiceLabel"), 64);
         shortLabel = limit(tag.getString("ShortLabel"), 16);
         textMessage = limit(tag.getString("TextMessage"), 256);
+        lic = limit(tag.getString("Lic"), 16);
         antennaPos = tag.contains("AntennaPos") ? BlockPos.of(tag.getLong("AntennaPos")) : null;
     }
 }

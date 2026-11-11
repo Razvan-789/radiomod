@@ -291,6 +291,7 @@ public final class Dx3Catalog {
             String ps = decode ? best.getCurrentPsFrame(level.getGameTime()).trim() : "";
             String longPs = decode && best.isRdsGroupEnabled(28) ? best.getRdsLongPs().trim() : "";
             String rt = decode && best.isRdsGroupEnabled(4) ? best.getCurrentRtText(level.getGameTime()).trim() : "";
+            String broadcastRt = rt;
             if (decode) {
                 RdsTextDecoding.Text text = RdsTextDecoding.forPlayer(player,
                         "F:" + best.getBlockPos().asLong() + ":" + tuned, ps, longPs, rt,
@@ -301,9 +302,11 @@ public final class Dx3Catalog {
             RdsFrameData frame = ctBroadcast ? best.getCurrentRdsFrame(
                     rdsBerPercent(bestSignal, snr), level.getGameTime(), "") : null;
             boolean ctFrame = frame != null && "4A".equals(frame.groupCode());
+            ProgrammeTags tags = decode && best.broadcastsRtPlus() && rt.equals(broadcastRt)
+                    ? ProgrammeTags.fromText(rt) : ProgrammeTags.EMPTY;
             return new PlayerInfo(true, ps, longPs, limit(rt, 256), decode ? best.getRdsPty() : 0,
                     bars(bestSignal), ctBroadcast, ctFrame, "F:" + best.getBlockPos().asLong() + ":" + tuned,
-                    0, "", decode);
+                    0, "", decode, decode ? best.getRdsLic() : "", tags.title(), tags.artist());
         }
         RdsTextDecoding.clearPlayer(player);
         int channel = DabChannel.clampIndex(RadioItem.getDabChannelIndex(player));
@@ -335,10 +338,13 @@ public final class Dx3Catalog {
                 }
             }
         }
+        String dls = best == null ? "" : DabDlsResolver.text(best);
+        ProgrammeTags tags = best != null && best.dlsPlus() ? ProgrammeTags.fromText(dls) : ProgrammeTags.EMPTY;
         return best == null ? PlayerInfo.EMPTY : new PlayerInfo(true, limit(best.label(), 96), "",
-                limit(DabDlsResolver.text(best), 256), best.pty(), bars(bestSignal), false, false,
+                limit(dls, 256), best.pty(), bars(bestSignal), false, false,
                 "D:" + channel + ":" + mux + ":" + sid, best.bitrateKbps(),
-                bestVersion.getLabel() + " / " + bestVersion.getCodecLabel(), false);
+                bestVersion.getLabel() + " / " + bestVersion.getCodecLabel(), false, best.lic(),
+                limit(tags.title(), 128), limit(tags.artist(), 128));
     }
 
     public static int[] playerLogo(Player player) {
@@ -472,7 +478,14 @@ public final class Dx3Catalog {
 
     public record PlayerInfo(boolean active, String ps, String longPs, String rt, int pty,
                              int bars, boolean ctBroadcast, boolean ctFrame, String source,
-                             int bitrateKbps, String codec, boolean rds) {
-        public static final PlayerInfo EMPTY = new PlayerInfo(false, "", "", "", 0, 0, false, false, "", 0, "", false);
+                             int bitrateKbps, String codec, boolean rds, String lic,
+                             String title, String artist) {
+        public PlayerInfo(boolean active, String ps, String longPs, String rt, int pty,
+                int bars, boolean ctBroadcast, boolean ctFrame, String source,
+                int bitrateKbps, String codec, boolean rds, String lic) {
+            this(active, ps, longPs, rt, pty, bars, ctBroadcast, ctFrame, source,
+                    bitrateKbps, codec, rds, lic, "", "");
+        }
+        public static final PlayerInfo EMPTY = new PlayerInfo(false, "", "", "", 0, 0, false, false, "", 0, "", false, "");
     }
 }

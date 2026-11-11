@@ -921,7 +921,7 @@ public class Radio {
                         PacketDistributor.sendToPlayer(serverPlayer, new SyncTechnisatReceiverHudPayload(pos,
                                 RadioItem.MODE_DRM, technisat.getDrmFrequencyKhz(), sample.decoded(),
                                 Dx3Catalog.limit(label, 96), Dx3Catalog.limit(message, 256),
-                                bars, false, false, ""));
+                                bars, false, false, "", "", ""));
                     } else {
                         Dx3ReceiverCatalog.Sample sample = Dx3ReceiverCatalog.sample(receiver);
                         PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3ReceiverAudioPayload(pos,
@@ -934,7 +934,8 @@ public class Radio {
                                     : technisat.getFrequencyKhz();
                             PacketDistributor.sendToPlayer(serverPlayer, new SyncTechnisatReceiverHudPayload(pos,
                                     technisat.getRadioMode(), frequency, info.active(), info.ps(), info.rt(),
-                                    info.signalBars(), info.rds(), info.ct(), info.time()));
+                                    info.signalBars(), info.rds(), info.ct(), info.time(),
+                                    info.title(), info.artist()));
                         }
                     }
                 } else if (player.level().getBlockEntity(pos) instanceof DrmRadioBlockEntity receiver) {
@@ -1031,7 +1032,7 @@ public class Radio {
             Dx3Catalog.PlayerInfo info = Dx3Catalog.playerInfo(player);
             PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3PlayerPayload(0, info.active(),
                     info.ps(), info.longPs(), info.rt(), info.pty(), info.bars(), false, "",
-                    info.bitrateKbps(), info.codec(), info.rds()));
+                    info.bitrateKbps(), info.codec(), info.rds(), info.lic(), info.title(), info.artist()));
         }
 
         FmSyncSample sample = findBestFmForPlayer(player.level(), player.position(), player);

@@ -3,8 +3,17 @@ package com.radiomod.menu;
 import com.radiomod.Radio;
 import com.radiomod.blockentity.TransmitterBlockEntity;
 import com.radiomod.signal.SignalMath;
+import com.radiomod.signal.SignalNetwork;
 import com.radiomod.server.TransmitterPresets;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeSet;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -23,6 +32,8 @@ public class TransmitterMenu extends AbstractContainerMenu {
     private static final int BUTTON_SET_FREQUENCY_BASE = 1_000_000;
     private static final int BUTTON_SET_POWER_BASE = 2_000_000;
     private static final int STREAM_URL_MAX = 1024;
+    private static final int AF_PREVIEW_MAX = 1024;
+    private static final int AF_MAX = 32767;
 
     @Nullable
     private final TransmitterBlockEntity blockEntity;
@@ -43,7 +54,7 @@ public class TransmitterMenu extends AbstractContainerMenu {
     private final DataSlot streamUrlLengthSlot;
     private final DataSlot[] streamUrlSlots;
     private final DataSlot rdsPtySlot = addDataSlot(DataSlot.standalone());
-    private final TextSlots rdsPi = new TextSlots(4), rdsPs = new TextSlots(512), rdsAf = new TextSlots(64),
+    private final TextSlots rdsPi = new TextSlots(4), rdsPs = new TextSlots(512), rdsAf = new TextSlots(AF_PREVIEW_MAX),
             rdsEcc = new TextSlots(24), rdsLic = new TextSlots(24), rdsPin = new TextSlots(16),
             rdsRt = new TextSlots(64), rdsRtUrl = new TextSlots(200), rdsOdaGroup = new TextSlots(3),
             rdsPtyn = new TextSlots(8), rdsLongPs = new TextSlots(32);
@@ -285,8 +296,45 @@ public class TransmitterMenu extends AbstractContainerMenu {
         if (blockEntity == null) {
             return;
         }
+        if ("sync_af_network".equals(action)) {
+            syncAfNetwork(value);
+            return;
+        }
         blockEntity.applyRdsConfigAction(action, value);
         broadcastChanges();
+    }
+
+    private void syncAfNetwork(String desiredPi) {
+        if (!(owner instanceof ServerPlayer player)) return;
+        if (desiredPi == null || !desiredPi.matches("(?i)[0-9a-f]{4}")) {
+            player.displayClientMessage(Component.literal("Set a valid four-digit PI code first."), false);
+            return;
+        }
+        blockEntity.applyRdsConfigAction("set_pi", desiredPi);
+        String pi = blockEntity.getRdsPi();
+        List<TransmitterBlockEntity> network = new ArrayList<>();
+        TreeSet<Integer> frequencies = new TreeSet<>();
+        for (ServerLevel level : player.getServer().getAllLevels()) {
+            for (BlockPos pos : SignalNetwork.getTransmitters(level)) {
+                if (level.getBlockEntity(pos) instanceof TransmitterBlockEntity fm
+                        && pi.equalsIgnoreCase(fm.getRdsPi())) {
+                    network.add(fm);
+                    frequencies.add(fm.getFrequencyKhz());
+                }
+            }
+        }
+        String af = frequencies.stream()
+                .map(khz -> BigDecimal.valueOf(khz, 3).stripTrailingZeros().toPlainString())
+                .collect(java.util.stream.Collectors.joining(" "));
+        if (af.length() > AF_MAX) {
+            player.displayClientMessage(Component.literal("AF network exceeds the maximum saved text length."), false);
+            return;
+        }
+        for (TransmitterBlockEntity fm : network) fm.applyRdsConfigAction("set_af", af);
+        broadcastChanges();
+        player.displayClientMessage(Component.literal("Synced " + frequencies.size() + " AF frequencies to "
+                + network.size() + " FM transmitters with PI " + pi.toUpperCase(java.util.Locale.ROOT) + "."
+                + (af.length() > AF_PREVIEW_MAX ? " The editor shows the first 1024 characters." : "")), false);
     }
 
     public void setUploadedAudioSource(String source) {

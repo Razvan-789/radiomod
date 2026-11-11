@@ -110,6 +110,7 @@ public final class Dx3ReceiverCatalog {
             String ps = rds ? best.getCurrentPsFrame(level.getGameTime()).trim() : "";
             String longPs = rds && best.isRdsGroupEnabled(28) ? best.getRdsLongPs().trim() : "";
             String rt = rds && best.isRdsGroupEnabled(4) ? best.getCurrentRtText(level.getGameTime()).trim() : "";
+            String broadcastRt = rt;
             if (rds) {
                 RdsTextDecoding.Text text = RdsTextDecoding.forReceiver(receiver,
                         "F:" + best.getBlockPos().asLong() + ":" + receiver.getFrequencyKhz(),
@@ -122,8 +123,11 @@ public final class Dx3ReceiverCatalog {
                 long ticks = Math.floorMod(level.dayTime() + 6000L, 24000L);
                 time = String.format(Locale.ROOT, "%02d:%02d", ticks / 1000, ticks % 1000 * 60 / 1000);
             }
+            ProgrammeTags tags = rds && best.broadcastsRtPlus() && rt.equals(broadcastRt)
+                    ? ProgrammeTags.fromText(rt) : ProgrammeTags.EMPTY;
             SyncDx3PlayerPayload info = new SyncDx3PlayerPayload(0, true, ps, longPs, rt,
-                    rds ? best.getRdsPty() : 0, bars(bestSignal), ct, time, 0, "", rds);
+                    rds ? best.getRdsPty() : 0, bars(bestSignal), ct, time, 0, "", rds,
+                    rds ? best.getRdsLic() : "", tags.title(), tags.artist());
             return new Sample(ServerAudioProxy.buildProxyToken(best.getStreamUrl()), best.getStreamUrl(),
                     bestSignal, snr, info, null);
         }
@@ -151,12 +155,15 @@ public final class Dx3ReceiverCatalog {
         }
         if (bestService == null) return Sample.EMPTY;
         String source = bestService.streamUrl();
+        String dls = DabDlsResolver.text(bestService);
+        ProgrammeTags tags = bestService.dlsPlus() ? ProgrammeTags.fromText(dls) : ProgrammeTags.EMPTY;
         String url = ServerAudioProxy.buildDabProxyToken(source,
                 bestGroup.transmitter().getDabVersion() == DabVersion.DAB_PLUS, bestService.bitrateKbps());
         SyncDx3PlayerPayload info = new SyncDx3PlayerPayload(0, true, Dx3Catalog.limit(bestService.label(), 96), "",
-                Dx3Catalog.limit(DabDlsResolver.text(bestService), 256), bestService.pty(), bars(bestSignal), false, "",
+                Dx3Catalog.limit(dls, 256), bestService.pty(), bars(bestSignal), false, "",
                 bestService.bitrateKbps(), bestGroup.transmitter().getDabVersion().getLabel() + " / "
-                        + bestGroup.transmitter().getDabVersion().getCodecLabel());
+                        + bestGroup.transmitter().getDabVersion().getCodecLabel(), false, bestService.lic(),
+                Dx3Catalog.limit(tags.title(), 128), Dx3Catalog.limit(tags.artist(), 128));
         return new Sample(url, source, bestSignal, bestSnr, info,
                 Dx3Catalog.motPixels(bestService.motPng(), 64));
     }

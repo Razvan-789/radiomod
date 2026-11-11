@@ -14,7 +14,7 @@ public record SetFmRdsConfigPayload(int containerId, String action, String value
             SetFmRdsConfigPayload::containerId,
             ByteBufCodecs.stringUtf8(64),
             SetFmRdsConfigPayload::action,
-            ByteBufCodecs.stringUtf8(2048),
+            ByteBufCodecs.stringUtf8(8192),
             SetFmRdsConfigPayload::value,
             SetFmRdsConfigPayload::new
     );

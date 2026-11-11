@@ -11,7 +11,8 @@ import net.minecraft.resources.ResourceLocation;
 /** Current programme information for a nearby placed Technisat's PIN display. */
 public record SyncTechnisatReceiverHudPayload(BlockPos pos, int mode, int frequencyKhz,
                                               boolean active, String label, String text,
-                                              int bars, boolean rds, boolean ct, String time)
+                                              int bars, boolean rds, boolean ct, String time,
+                                              String title, String artist)
         implements CustomPacketPayload {
     public static final Type<SyncTechnisatReceiverHudPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Radio.MODID, "sync_technisat_receiver_hud"));
@@ -23,10 +24,13 @@ public record SyncTechnisatReceiverHudPayload(BlockPos pos, int mode, int freque
                 ByteBufCodecs.stringUtf8(768).encode(b, p.text);
                 b.writeByte(p.bars); b.writeBoolean(p.rds); b.writeBoolean(p.ct);
                 ByteBufCodecs.stringUtf8(8).encode(b, p.time);
+                ByteBufCodecs.stringUtf8(512).encode(b, p.title);
+                ByteBufCodecs.stringUtf8(512).encode(b, p.artist);
             },
             b -> new SyncTechnisatReceiverHudPayload(BlockPos.of(b.readLong()), b.readUnsignedByte(),
                     b.readInt(), b.readBoolean(), ByteBufCodecs.stringUtf8(288).decode(b),
                     ByteBufCodecs.stringUtf8(768).decode(b), b.readUnsignedByte(), b.readBoolean(),
-                    b.readBoolean(), ByteBufCodecs.stringUtf8(8).decode(b)));
+                    b.readBoolean(), ByteBufCodecs.stringUtf8(8).decode(b),
+                    ByteBufCodecs.stringUtf8(512).decode(b), ByteBufCodecs.stringUtf8(512).decode(b)));
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }

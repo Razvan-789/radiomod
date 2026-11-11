@@ -2,6 +2,7 @@ package com.radiomod.client.screen;
 
 import com.radiomod.menu.DabServerMenu;
 import com.radiomod.network.SetDabServerConfigPayload;
+import com.radiomod.signal.DynamicRadioTextResolver;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -34,6 +35,8 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
     private Button renameMuxButton;
     private Button renameStationButton;
     private Button dlsModeButton;
+    private Button dlsPlusButton;
+    private Button icyButton;
     private Button saveButton;
     private Button uploadAudioButton;
     private EditBox ensembleNameInput;
@@ -45,6 +48,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
     private EditBox streamUrlInput;
     private EditBox bitrateInput;
     private EditBox ptyInput;
+    private EditBox licInput;
     private int previousMode = -1;
     private int previousEnsembleIndex = -1;
     private int previousStationIndex = -1;
@@ -107,8 +111,9 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
         ensembleNameInput = addInput(left + 204, top + 94, 280, 32, "screen.radio.dab_server.ensemble_name", "screen.radio.dab_server.ensemble_name_hint");
         sidInput = addInput(left + 294, top + 62, 190, 8, "screen.radio.dab_server.sid", "screen.radio.dab_server.sid_hint");
         labelInput = addInput(left + 294, top + 86, 190, 32, "screen.radio.dab_server.label", "screen.radio.dab_server.label_hint");
-        ptyInput = addInput(left + 294, top + 110, 190, 2, "screen.radio.dab_server.pty", "screen.radio.dab_server.pty_hint");
+        ptyInput = addInput(left + 294, top + 110, 44, 2, "screen.radio.dab_server.pty", "screen.radio.dab_server.pty_hint");
         ptyInput.setFilter(value -> value.length() <= 2 && isNumericInput(value));
+        licInput = addInput(left + 382, top + 110, 102, 16, "LIC", "Language (e.g. English)");
         dlsTextInput = addInput(left + 294, top + 134, 190, 128, "screen.radio.dab_server.dls_text", "screen.radio.dab_server.dls_text_hint");
         dlsUrlInput = addInput(left + 294, top + 134, 190, 200, "screen.radio.dab_server.dls_url", "screen.radio.dab_server.dls_url_hint");
         motUrlInput = addInput(left + 294, top + 158, 190, 200, "screen.radio.dab_server.mot_url", "screen.radio.dab_server.mot_url_hint");
@@ -117,7 +122,18 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
         bitrateInput.setFilter(this::isNumericInput);
 
         dlsModeButton = addRenderableWidget(Button.builder(Component.empty(), button -> click(DabServerMenu.BUTTON_STATION_DLS_MODE_TOGGLE))
-                .bounds(left + 204, top + 232, 130, 22).build());
+                .bounds(left + 204, top + 232, 112, 22).build());
+        dlsPlusButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
+                    if (stationDirty) saveStationForm();
+                    applyAction("set_dls_plus", Boolean.toString(!menu.isStationDlsPlus()));
+                }).bounds(left + 320, top + 232, 80, 22).build());
+        dlsPlusButton.setTooltip(Tooltip.create(Component.literal("Tag DLS as Artist - Title")));
+        icyButton = addRenderableWidget(Button.builder(Component.literal("Use ICY"), button -> {
+                    if (stationDirty) saveStationForm();
+                    applyAction("set_dls_url", "icy:stream");
+                    dlsUrlInput.setValue("icy:stream");
+                    if (!menu.isStationDlsUrlMode()) click(DabServerMenu.BUTTON_STATION_DLS_MODE_TOGGLE);
+                }).bounds(left + 404, top + 232, 80, 22).build());
         renameStationButton = addRenderableWidget(Button.builder(Component.translatable("screen.radio.dab_server.rename_station"), button -> saveStationForm())
                 .bounds(left + 204, top + 264, 154, 24).build());
         renameStationButton.setTooltip(Tooltip.create(Component.translatable("screen.radio.dab_server.rename_station_hint")));
@@ -182,6 +198,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
             syncInput(sidInput, menu.getStationSid());
             syncInput(labelInput, menu.getStationLabel());
             syncInput(ptyInput, Integer.toString(menu.getStationPty()));
+            syncInput(licInput, menu.getStationLic());
             syncInput(dlsTextInput, menu.getStationDlsText());
             syncInput(dlsUrlInput, menu.getStationDlsUrl());
             syncInput(motUrlInput, menu.getStationMotUrl());
@@ -282,7 +299,13 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
             guiGraphics.drawString(font, Component.translatable("screen.radio.dab_server.page", menu.getStationCount() == 0 ? 0 : menu.getStationPageStart() / STATION_LIST_ROWS + 1,
                     (menu.getStationCount() + STATION_LIST_ROWS - 1) / STATION_LIST_ROWS), 326, 246, MUTED_TEXT, false);
         }
-        if (!menu.getStatusMessage().isBlank()) {
+        String icySource = dlsUrlInput == null ? menu.getStationDlsUrl() : dlsUrlInput.getValue();
+        if (mode == DabServerMenu.MODE_STATION_DETAIL && ("icy:stream".equals(icySource)
+                || (dlsTextInput.getValue().isBlank()
+                && (!menu.isStationDlsUrlMode() || icySource.isBlank())))) {
+            guiGraphics.drawString(font, DynamicRadioTextResolver.icyStatus(streamUrlInput.getValue()),
+                    204, 296, 0xFF9FE29F, false);
+        } else if (!menu.getStatusMessage().isBlank()) {
             guiGraphics.drawString(font, menu.getStatusMessage(), 204, 296, 0xFF9FE29F, false);
         }
         if (menu.getEnsembleCount() > 0) {
@@ -306,6 +329,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
             }
             guiGraphics.drawString(font, Component.translatable(keys[i]), 204, 68 + i * 24, MUTED_TEXT, false);
         }
+        guiGraphics.drawString(font, "LIC", 344, 116, MUTED_TEXT, false);
     }
 
     private void applyCurrentInputs() {
@@ -322,7 +346,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
         }
         String packed = String.join("\u001F", sidInput.getValue(), labelInput.getValue(), dlsTextInput.getValue(),
                 dlsUrlInput.getValue(), motUrlInput.getValue(), streamUrlInput.getValue(), bitrateInput.getValue(),
-                ptyInput.getValue());
+                ptyInput.getValue(), licInput.getValue());
         pendingStationRevision = Math.max(pendingStationRevision, menu.getStationSaveRevision()) + 1;
         stationDirty = false;
         applyAction("save_station_form", packed);
@@ -372,6 +396,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
         sidInput.visible = detail;
         labelInput.visible = detail;
         ptyInput.visible = detail;
+        licInput.visible = detail;
         dlsTextInput.visible = detail && !menu.isStationDlsUrlMode();
         dlsUrlInput.visible = detail && menu.isStationDlsUrlMode();
         motUrlInput.visible = detail;
@@ -379,6 +404,9 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
         uploadAudioButton.visible = detail;
         bitrateInput.visible = detail;
         dlsModeButton.visible = detail;
+        dlsPlusButton.visible = detail;
+        icyButton.visible = detail;
+        dlsPlusButton.setMessage(Component.literal(menu.isStationDlsPlus() ? "DLS+ ON" : "DLS+ OFF"));
         dlsModeButton.setMessage(Component.translatable(menu.isStationDlsUrlMode()
                 ? "screen.radio.dab_server.dls_url_mode" : "screen.radio.dab_server.dls_text_mode"));
         saveButton.visible = ensembles || detail;
@@ -423,12 +451,12 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
     }
 
     private EditBox[] allInputs() {
-        return new EditBox[]{ensembleNameInput, sidInput, labelInput, ptyInput, dlsTextInput, dlsUrlInput,
+        return new EditBox[]{ensembleNameInput, sidInput, labelInput, ptyInput, licInput, dlsTextInput, dlsUrlInput,
                 motUrlInput, streamUrlInput, bitrateInput};
     }
 
     private EditBox[] stationInputs() {
-        return new EditBox[]{sidInput, labelInput, ptyInput, dlsTextInput, dlsUrlInput, motUrlInput, streamUrlInput, bitrateInput};
+        return new EditBox[]{sidInput, labelInput, ptyInput, licInput, dlsTextInput, dlsUrlInput, motUrlInput, streamUrlInput, bitrateInput};
     }
 
     private boolean isAnyStationInputFocused() {

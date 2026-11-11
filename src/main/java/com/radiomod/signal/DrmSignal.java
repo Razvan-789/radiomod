@@ -1,14 +1,23 @@
 package com.radiomod.signal;
 
+import com.radiomod.Config;
 import com.radiomod.blockentity.DrmTransmitterBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-/** DRM groundwave and skywave approximation, in Minecraft blocks. */
+/** DRM groundwave and skywave approximation using the world's distance scale. */
 public final class DrmSignal {
     public static final int MIN_KHZ = 140;
     public static final int MAX_KHZ = 30_000;
+    // At 0.05 mod km/block, 50 kW MW near 909 kHz reaches roughly 4,000 blocks
+    // by day and 15,000–17,000 blocks by night in the clear with a TX antenna.
+    private static final double LW_GROUND_LOSS_DB_PER_KM = 0.28;
+    private static final double MW_DAY_LOSS_DB_PER_KM = 0.50;
+    private static final double MW_NIGHT_LOSS_DB_PER_KM = 0.13;
+    private static final double SW_GROUND_LOSS_DB_PER_KM = 1.90;
+    private static final double SW_DAY_SKY_LOSS_DB_PER_KM = 0.10;
+    private static final double SW_NIGHT_SKY_LOSS_DB_PER_KM = 0.085;
     private DrmSignal() { }
 
     public static int clampFrequency(int khz) { return Math.max(MIN_KHZ, Math.min(MAX_KHZ, khz)); }
@@ -27,18 +36,34 @@ public final class DrmSignal {
         Vec3 target = Vec3.atCenterOf(receiver);
         double distance = Math.sqrt(Math.pow(source.x - target.x, 2) + Math.pow(source.z - target.z, 2)
                 + Math.pow(Math.min(64, Math.abs(source.y - target.y)), 2));
+        double distanceKm = distance * Config.getKilometersPerBlock();
         double power = 10.0 * Math.log10(Math.max(1, tx.getPowerW()) / 50.0);
         double antenna = tx.hasAntennaConnected() ? 8.0 : -14.0;
         double signal;
+        boolean night = isNight(level);
         switch (band(tx.getFrequencyKhz())) {
-            case "LW" -> signal = 91 + power + antenna - distance * 0.045;
-            case "MW" -> signal = 91 + power + antenna - distance * (isNight(level) ? 0.043 : 0.085);
+            case "LW" -> {
+                // Lower LW frequencies travel farther; night changes the groundwave only modestly.
+                double frequencyFactor = Math.sqrt(tx.getFrequencyKhz() / 220.0);
+                signal = 91 + power + antenna - distanceKm * LW_GROUND_LOSS_DB_PER_KM
+                        * frequencyFactor * (night ? 0.90 : 1.0);
+            }
+            case "MW" -> signal = 91 + power + antenna - distanceKm
+                    * (night ? MW_NIGHT_LOSS_DB_PER_KM : MW_DAY_LOSS_DB_PER_KM);
             default -> {
-                double ground = 91 + power + antenna - distance * 0.16;
-                // SW groundwave gives way to a distant skywave region after a skip zone.
-                double sky = 67 + power + antenna - Math.abs(distance - (isNight(level) ? 1650 : 1250)) * 0.033;
-                double onset = Math.max(0, Math.min(1, (distance - 500) / 350.0));
-                signal = Math.max(ground, sky * onset + (-30) * (1 - onset));
+                double ground = 91 + power + antenna - distanceKm * SW_GROUND_LOSS_DB_PER_KM;
+                // Skywave reappears beyond a skip zone. Higher SW frequencies skip farther;
+                // lower SW frequencies receive a larger nighttime benefit.
+                double highBand = Math.clamp((tx.getFrequencyKhz() - 3_000) / 27_000.0, 0.0, 1.0);
+                double skipStartKm = (night ? 180.0 : 250.0) + highBand * 120.0;
+                double skyPeakKm = skipStartKm + 240.0;
+                double frequencyBiasDb = (highBand - 0.35) * (night ? -7.0 : 7.0);
+                double skyPeak = 63 + power + antenna + (night ? 4.0 : 0.0) + frequencyBiasDb;
+                double skyLoss = night ? SW_NIGHT_SKY_LOSS_DB_PER_KM : SW_DAY_SKY_LOSS_DB_PER_KM;
+                double skyOnset = Math.clamp((distanceKm - skipStartKm) / 80.0, 0.0, 1.0);
+                double sky = skyPeak - Math.abs(distanceKm - skyPeakKm) * skyLoss
+                        - (1.0 - skyOnset) * 80.0;
+                signal = Math.max(ground, sky);
             }
         }
         signal += tx.antennaGainToward(target);

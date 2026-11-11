@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -15,12 +16,13 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Shared, nonblocking source for plain text, TuneIn now-playing JSON, and SSE titles. */
+/** Shared, nonblocking source for plain text, TuneIn, SSE, and audio-stream ICY metadata. */
 public final class DynamicRadioTextResolver {
     private static final long REFRESH_MS = 10_000L;
     private static final int MAX_RESPONSE_CHARS = 8_192;
     private static final Pattern TUNEIN_STATION_ID = Pattern.compile("(?i)(?:^|[^a-z0-9])s(\\d{1,10})(?:$|[^a-z0-9])");
     private static final Map<String, Entry> CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, IcyEntry> ICY_CACHE = new ConcurrentHashMap<>();
     private static final ExecutorService WORKERS = Executors.newFixedThreadPool(2, task -> {
         Thread thread = new Thread(task, "radio-dynamic-text");
         thread.setDaemon(true);
@@ -48,6 +50,95 @@ public final class DynamicRadioTextResolver {
             }
             return entry.text;
         }
+    }
+
+    /** Reads one ICY metadata block without downloading or decoding the audio stream. */
+    public static String icyText(String streamUrl) {
+        return icyEntry(streamUrl).text;
+    }
+
+    public static String icyStatus(String streamUrl) {
+        return icyEntry(streamUrl).status;
+    }
+
+    private static IcyEntry icyEntry(String streamUrl) {
+        String url = normalizeUrl(streamUrl);
+        if (url.isEmpty()) return new IcyEntry("No HTTP audio stream");
+        IcyEntry entry = ICY_CACHE.computeIfAbsent(url, ignored -> new IcyEntry("Checking ICY metadata..."));
+        long now = System.currentTimeMillis();
+        synchronized (entry) {
+            if (!entry.loading && now - entry.lastRequested >= REFRESH_MS) {
+                entry.loading = true;
+                entry.lastRequested = now;
+                WORKERS.execute(() -> {
+                    IcyResult result = fetchIcy(url);
+                    synchronized (entry) {
+                        entry.text = result.text();
+                        entry.status = result.status();
+                        entry.loading = false;
+                    }
+                });
+            }
+        }
+        return entry;
+    }
+
+    private static IcyResult fetchIcy(String url) {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+            connection.setConnectTimeout(3_000);
+            connection.setReadTimeout(3_000);
+            connection.setRequestProperty("Icy-MetaData", "1");
+            connection.setRequestProperty("User-Agent", "RadioMod");
+            if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300)
+                return new IcyResult("", "Stream unavailable (HTTP " + connection.getResponseCode() + ")");
+            String intervalHeader = connection.getHeaderField("icy-metaint");
+            int interval;
+            try {
+                interval = Integer.parseInt(intervalHeader == null ? "" : intervalHeader.trim());
+            } catch (NumberFormatException ignored) {
+                interval = 0;
+            }
+            if (interval <= 0 || interval > 1_048_576)
+                return new IcyResult("", "No ICY metadata in stream");
+            try (InputStream stream = connection.getInputStream()) {
+                stream.skipNBytes(interval);
+                int blocks = stream.read();
+                if (blocks < 0) return new IcyResult("", "ICY metadata unavailable");
+                byte[] bytes = stream.readNBytes(blocks * 16);
+                String metadata = new String(bytes, StandardCharsets.UTF_8).replace("\0", "");
+                String title = icyValue(metadata, "StreamTitle");
+                if (title.isBlank()) {
+                    String artist = icyValue(metadata, "artist");
+                    String song = icyValue(metadata, "title");
+                    title = artist.isBlank() ? song : song.isBlank() ? artist : artist + " - " + song;
+                }
+                return new IcyResult(clean(title), title.isBlank()
+                        ? "ICY metadata present; no song text" : "ICY metadata found");
+            }
+        } catch (Exception ignored) {
+            return new IcyResult("", "Could not check ICY metadata");
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private static String icyValue(String metadata, String key) {
+        Matcher matcher = Pattern.compile("(?i)(?:^|;)\\s*" + Pattern.quote(key)
+                + "\\s*=\\s*(['\"])(.*?)\\1", Pattern.DOTALL).matcher(metadata);
+        return matcher.find() ? matcher.group(2) : "";
+    }
+
+    private record IcyResult(String text, String status) { }
+
+    private static final class IcyEntry {
+        private volatile String text = "";
+        private volatile String status;
+        private long lastRequested;
+        private boolean loading;
+
+        private IcyEntry(String status) { this.status = status; }
     }
 
     static String normalizeUrl(String sourceUrl) {

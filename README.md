@@ -27,11 +27,16 @@ Radio Mod adds transmitter blocks, radios and other items. It also calculates ea
 
 **Spectrum Analyser:** A receive-only handheld spectrum and waterfall display for DRM, FM, VOR, DAB/DAB+ and ADS-B. Right-click to open it. Enter a frequency in MHz and press SET, click the spectrum, use the tuning buttons or arrow keys, or scroll over the display to tune; crossing a band edge changes mode automatically. FM/OIRT tuning uses 100 kHz steps, DAB uses channel steps, DRM uses 5 kHz, and VOR uses 50 kHz. SPAN controls the displayed frequency range; BW sets receive bandwidth. The frequency axis marks LW/MW/shortwave broadcast ranges, OIRT/Japanese/standard FM, VOR/ILS, DAB and 1090 MHz ADS-B. VOR carriers are continuous; ADS-B shows brief, randomly spaced data bursts whose frequency increases with the number of receivable transponders. Band ranges appear as red lines with inset labels along the bottom of the spectrum. Enter upper and lower signal limits in dBµV and press APPLY to set the spectrum scale and waterfall colors; leave either field blank to keep that limit automatic, or press AUTO to reset both. Clicking a received DRM carrier shows its service label, mode, bitrate and text, and plays its audio. Clicking a received DAB ensemble shows its multiplex, error correction, TII code and station list; click a station to hear it and see its bitrate and SID. FM plays its tuned station with static that follows reception quality: a narrow bandwidth adds static even on strong stations, while a wide bandwidth adds static to weaker ones. FM playback continues after closing the analyser screen while the item remains in the player's inventory or hotbar and FM is selected. On FM, PI, PS, RT, PTY and the last decoded RDS group appear at the top of the spectrum; PS and RT fill in as their groups arrive, and high BER makes decoding slower or unavailable. DAB and DRM play static only when the tuned signal is unavailable. When blocks cover the player's head, digital carriers show moving multipath peaks and deeper holes that leave bright and dark diagonal trails in the waterfall. The dashed lines mark the selected bandwidth, and the RF reading reflects how much of a station it captures. The server sends received signal and service data while the client draws the spectrum, noise and waterfall.
 
+The Spectrum Analyser shows the selected DAB or DRM service's LIC language in its service information.
+
 **FM**
 - FM transmitters can be connected to antennas using the linking tool and support realistic RDS controls (by editing the groups)
 - FM signal gets weaker gradually and is affected by height and if you're underground (the number and type of blocks above you matters)
 - RDS is affected by the signal and its BER (Bit Error Rate) is simulated.
+- In RDS group 0A, set the network's PI and press **SYNC NETWORK** beside the AF list. The server finds FM transmitters with that PI across all dimensions, sorts their distinct frequencies, and writes the same AF list to each transmitter. Repeat the sync after adding a transmitter or changing one of its frequencies.
 - In the 2A RT URL field, paste a plain text URL, a TuneIn `nowPlaying` JSON URL, or a TuneIn station page link. Saving a URL enables RT URL mode automatically. The server reads `Header.Subtitle` in the background every 10 seconds; SSE sources with a JSON `title` field also work.
+- When the FM transmitter has an audio stream URL and no manual RT or RT URL, it reads ICY song text directly from that configured stream. The transmitter screen reports whether ICY metadata is available. `StreamTitle` is used as broadcast; separate `artist` and `title` fields become `Artist - Title`. The check repeats every 10 seconds. Manual RT and RT URLs take priority; **Use audio stream ICY** explicitly selects the stream when you want to override them.
+- To broadcast RT+, open RDS group 11A, 12A or 13A and choose **Use for RT+**. This enables the needed 2A, 3A and selected group. When the decoded RadioText contains `Artist - Title`, the DX3 and TechniSat player screens show separate artist and title fields. The 3A page can disable RT+ or change its group.
 - RDS Groups:
 
 | Group | Usage |
@@ -47,13 +52,18 @@ Radio Mod adds transmitter blocks, radios and other items. It also calculates ea
 These are all based on real RDS groups. More information about RDS groups can be found on Wikipedia.
 
 **DAB**
-- DAB Servers are required to create multiplexes and stations. DAB transmitters can then be linked to a server to broadcast a multiplex from that server.
+- DAB Servers are required to create multiplexes and stations. Each station has an optional LIC language field. DAB transmitters can then be linked to a server to broadcast a multiplex from that server.
 - DAB signals are more affected by blocks above the player than FM.
 - In a station's DLS URL mode, the DLS URL field accepts the same plain text, TuneIn JSON, TuneIn station page, and SSE sources as FM RT.
+- When a DAB station has an audio stream URL and no manual DLS or DLS URL, it reads ICY song text directly from that configured stream. The DAB server screen reports whether the stream provides ICY metadata. `StreamTitle` is used directly; separate `artist` and `title` fields become `Artist - Title`. Manual DLS and DLS URLs take priority; **Use ICY** explicitly selects the stream when you want to override them.
+- Each station has a DLS+ switch. When enabled, DLS in `Artist - Title` form produces separate artist and title fields on the DX3 and TechniSat player screens. The setting is saved with the station.
 
 **DRM**
 - DRM implementation is still in an early phase and **will contain bugs**
 - DRM signals that propagate realistically and are influenced by frequency and time.
+- MW range uses the server's configured kilometres per block. At 0.05 km/block, a 50 kW transmitter around 909 kHz with a linked antenna reaches roughly 4,000 blocks by day and 15,000–18,000 blocks at night in clear conditions; decoder mode, underground cover, antenna direction and receiver noise change the result. LW groundwave is longer and continuous.
+- LW and SW also use the configured distance scale. Lower LW frequencies travel farther, with a modest nighttime improvement. SW has a short local groundwave range, a skip zone, then a distant skywave region whose onset and strength depend on frequency and time of day.
+- DRM transmitters have an optional LIC language field on their Service / Audio page.
 
 **VOR/DME**
 - VOR blocks that allow for navigation using a Navigator item.
@@ -65,11 +75,11 @@ These are all based on real RDS groups. More information about RDS groups can be
 
 **Radios**
 - Deepelec DP666 (black and white versions, for FM)
-- DX3 Radio/Reciever (not based on a real radio, for FM/DAB)
+- DX3 Radio/Reciever (not based on a real radio, for FM/DAB); the player tab shows the selected station's LIC language. Its PIN overlay shows decoded RT+/DLS+ song titles in white with artists below in gray.
 - DRM Radio/Reciever (for DRM)
-- Technisat DIGITRADIO 21 (based on the real version, for FM/DAB/DRM)
+- Technisat DIGITRADIO 21 (based on the real version, for FM/DAB/DRM); INFO shows the selected service's LIC language. Its handheld and placed-receiver PIN overlays show decoded RT+/DLS+ titles in white with artists below in gray.
 - Pure The Bug (placeable DAB-only speaker): place it and right-click to open its display. Press SCAN to find regular DAB services from channels 5A–13F, MENU to view the saved station list, arrows and ENTER to select, and MUTE to silence the speaker. Its display shows the service label, DLS, channel, bitrate, signal bars and time. It ignores FM and DAB+ broadcasts.
-- Sony XDR-S41D (white and black handheld versions, for FM/DAB): right-click to open its blue display. DAB/FM switches modes. On FM, the arrows tune in 100 kHz steps and AUTO TUNE seeks the next station. On DAB, AUTO TUNE scans channels 5A–13F, pauses briefly at each receivable multiplex, counts services, and opens a selectable station list; MENU reopens the saved list. The Sony stays on its selected DAB channel and does not automatically switch to a linked channel. FM alternative-frequency switching is disabled. VOL mutes. FM displays decoded PS and RT; DAB displays the selected service label and DLS.
+- Sony XDR-S41D (white and black handheld versions, for FM/DAB): right-click to open its blue display. DAB/FM switches modes. On FM, the arrows tune in 100 kHz steps and AUTO TUNE seeks the next station. On DAB, AUTO TUNE scans channels 5A–13F, pauses briefly at each receivable multiplex, counts services, and opens a selectable station list; MENU reopens the saved list. The Sony stays on its selected DAB channel and does not automatically switch to a linked channel. FM alternative-frequency switching is disabled. VOL mutes. FM displays decoded PS and RT; DAB displays the selected service label and DLS. Its information screen shows the broadcast LIC language.
 
 **NOTE:** This project was made with the help of an AI agent.
 

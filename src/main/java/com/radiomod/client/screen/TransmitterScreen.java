@@ -2,6 +2,7 @@ package com.radiomod.client.screen;
 
 import com.radiomod.menu.TransmitterMenu;
 import com.radiomod.network.SetFmRdsConfigPayload;
+import com.radiomod.signal.DynamicRadioTextResolver;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -120,7 +121,7 @@ public class TransmitterScreen extends AbstractContainerScreen<TransmitterMenu> 
         drawCardLabel(guiGraphics, "FREQUENCY", String.format(java.util.Locale.ROOT,
                 "%.3f MHz", menu.getFrequencyKhz() / 1000.0), 63);
         drawCardLabel(guiGraphics, "TRANSMIT POWER", menu.getPowerW() + " W", 111);
-        drawCardLabel(guiGraphics, "AUDIO SOURCE", "", 159);
+        drawCardLabel(guiGraphics, "AUDIO SOURCE", DynamicRadioTextResolver.icyStatus(streamUrlInput.getValue()), 159);
     }
 
     private void drawCardLabel(GuiGraphics graphics, String label, String value, int y) {

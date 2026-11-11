@@ -225,7 +225,7 @@ public class Dx3Menu extends AbstractContainerMenu {
                 next = drmPlayerInfo(DrmReception.sampleReceiver(radio));
             } else next = new SyncDx3PlayerPayload(containerId, info.active(), info.ps(),
                     info.longPs(), info.rt(), info.pty(), info.signalBars(), info.ct(), info.time(),
-                    info.bitrateKbps(), info.codec(), info.rds());
+                    info.bitrateKbps(), info.codec(), info.rds(), info.lic(), info.title(), info.artist());
             if (!next.equals(playerInfo)) {
                 playerInfo = next;
                 PacketDistributor.sendToPlayer(serverPlayer, next);
@@ -474,7 +474,8 @@ public class Dx3Menu extends AbstractContainerMenu {
         return new SyncDx3PlayerPayload(containerId, true,
                 tx.getShortLabel().isBlank() ? tx.getServiceLabel() : tx.getShortLabel(),
                 tx.getServiceLabel(), tx.getTextMessage(), 0, bars, false, "",
-                tx.getOpusBitrateKbps(), "DRM " + "ABCD".charAt(Math.max(0, Math.min(3, tx.getMode()))));
+                tx.getOpusBitrateKbps(), "DRM " + "ABCD".charAt(Math.max(0, Math.min(3, tx.getMode()))),
+                false, tx.getLic());
     }
 
     public List<Dx3Station> getStations() {
@@ -537,7 +538,7 @@ public class Dx3Menu extends AbstractContainerMenu {
                 (dayTicks % 1000L) * 60L / 1000L);
         SyncDx3PlayerPayload next = new SyncDx3PlayerPayload(containerId, info.active(), info.ps(),
                 info.longPs(), info.rt(), info.pty(), info.bars(), ctDecoded, ctDecoded ? time : "",
-                info.bitrateKbps(), info.codec(), info.rds());
+                info.bitrateKbps(), info.codec(), info.rds(), info.lic(), info.title(), info.artist());
         if (!next.equals(playerInfo)) {
             playerInfo = next;
             PacketDistributor.sendToPlayer(serverPlayer, next);

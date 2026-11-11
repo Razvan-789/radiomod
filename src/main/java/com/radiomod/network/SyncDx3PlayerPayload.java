@@ -9,7 +9,19 @@ import net.minecraft.resources.ResourceLocation;
 
 public record SyncDx3PlayerPayload(int containerId, boolean active, String ps, String longPs,
                                    String rt, int pty, int signalBars, boolean ct, String time,
-                                   int bitrateKbps, String codec, boolean rds) implements CustomPacketPayload {
+                                   int bitrateKbps, String codec, boolean rds, String lic,
+                                   String title, String artist) implements CustomPacketPayload {
+    public SyncDx3PlayerPayload(int containerId, boolean active, String ps, String longPs,
+                                String rt, int pty, int signalBars, boolean ct, String time,
+                                int bitrateKbps, String codec, boolean rds, String lic) {
+        this(containerId, active, ps, longPs, rt, pty, signalBars, ct, time, bitrateKbps, codec,
+                rds, lic, "", "");
+    }
+    public SyncDx3PlayerPayload(int containerId, boolean active, String ps, String longPs,
+                                String rt, int pty, int signalBars, boolean ct, String time,
+                                int bitrateKbps, String codec, boolean rds) {
+        this(containerId, active, ps, longPs, rt, pty, signalBars, ct, time, bitrateKbps, codec, rds, "");
+    }
     public SyncDx3PlayerPayload(int containerId, boolean active, String ps, String longPs,
                                 String rt, int pty, int signalBars, boolean ct, String time,
                                 int bitrateKbps, String codec) {
@@ -33,13 +45,17 @@ public record SyncDx3PlayerPayload(int containerId, boolean active, String ps, S
         buffer.writeShort(payload.bitrateKbps);
         writeString(buffer, payload.codec, 40);
         buffer.writeBoolean(payload.rds);
+        writeString(buffer, payload.lic, 64);
+        writeString(buffer, payload.title, 512);
+        writeString(buffer, payload.artist, 512);
     }
 
     private static SyncDx3PlayerPayload read(ByteBuf buffer) {
         return new SyncDx3PlayerPayload(buffer.readInt(), buffer.readBoolean(), readString(buffer, 96),
                 readString(buffer, 96), readString(buffer, 256), buffer.readUnsignedByte(),
                 buffer.readUnsignedByte(), buffer.readBoolean(), readString(buffer, 8),
-                buffer.readUnsignedShort(), readString(buffer, 40), buffer.readBoolean());
+                buffer.readUnsignedShort(), readString(buffer, 40), buffer.readBoolean(), readString(buffer, 64),
+                readString(buffer, 512), readString(buffer, 512));
     }
 
     private static void writeString(ByteBuf buffer, String value, int maxBytes) {

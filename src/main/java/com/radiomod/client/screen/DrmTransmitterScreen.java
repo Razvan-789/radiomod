@@ -60,12 +60,13 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         field("message", menu.message(), "Text message (256 characters)", y + 153, 256);
         field("stream", menu.stream(), "https:// stream or uploaded audio", y + 187, 1024);
         field("image", menu.image(), "https:// artwork image URL", y + 221, 1024);
+        field("lic", menu.lic(), "LIC language (e.g. English)", y + 245, 16);
         addRenderableWidget(Button.builder(Component.literal("Save service"), b -> commit())
-                .bounds(x + w - 133, y + 264, 117, 20).build());
+                .bounds(x + w - 133, y + 267, 117, 20).build());
         addRenderableWidget(Button.builder(Component.literal("LIBRARY"), b -> {
             commit();
             minecraft.setScreen(new AudioLibraryScreen(this, menu.containerId, false));
-        }).bounds(x + 16, y + 264, 90, 20).build());
+        }).bounds(x + 16, y + 267, 90, 20).build());
         page();
     }
     private EditBox input(int x, int y, int width, String hint, String value, int max) {
@@ -84,7 +85,7 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         for (var widget : renderables) if (widget instanceof Button button) {
             int relY = button.getY() - topPos;
             if (relY == 86 || relY == 121 || relY == 173 || relY == 214) button.visible = rf;
-            if (relY == 264) button.visible = servicePage;
+            if (relY == 267) button.visible = servicePage;
         }
         for (EditBox box : fields.values()) box.visible = servicePage;
         rfTab.active = servicePage; serviceTab.active = !servicePage;
@@ -139,7 +140,7 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         if (!power.isFocused() && power.getValue().equals(lastPower)) power.setValue(serverPower);
         lastFrequency = serverFrequency; lastPower = serverPower;
         Map<String, String> serverValues = Map.of("service", menu.service(), "short", menu.shortName(),
-                "message", menu.message(), "stream", menu.stream(), "image", menu.image());
+                "message", menu.message(), "stream", menu.stream(), "image", menu.image(), "lic", menu.lic());
         for (var entry : fields.entrySet()) {
             String key = entry.getKey();
             EditBox box = entry.getValue();
@@ -158,8 +159,9 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         g.drawString(font, "DRM TRANSMITTER", 14, 12, TransmitterUi.TEXT, false);
         TransmitterUi.status(g, font, menu.hasAntenna() ? "TX antenna linked" : "Link a TX antenna", 16, 292, menu.hasAntenna());
         if (servicePage) {
-            String[] labels = {"SERVICE", "SHORT", "MESSAGE", "STREAM", "IMAGE"};
-            for (int i = 0; i < labels.length; i++) g.drawString(font, labels[i], 17, 87 + i * 34, TransmitterUi.ACCENT, false);
+            String[] labels = {"SERVICE", "SHORT", "MESSAGE", "STREAM", "IMAGE", "LIC"};
+            int[] rows = {87, 121, 155, 189, 223, 247};
+            for (int i = 0; i < labels.length; i++) g.drawString(font, labels[i], 17, rows[i], TransmitterUi.ACCENT, false);
         } else {
             g.drawString(font, "FREQUENCY", 17, 93, TransmitterUi.ACCENT, false);
             g.drawString(font, "POWER", 17, 128, TransmitterUi.ACCENT, false);

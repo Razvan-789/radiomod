@@ -127,14 +127,17 @@ public final class SpectrumAnalyserState {
                 for (int i = 0; i < Math.min(32, stations.size()); i++) {
                     var station = stations.get(i);
                     services.add(new SyncSpectrumPayload.Service(station.label(),
-                            station.bitrateKbps() + " kbps  SID " + station.sid(), i == s.selectedService));
+                            station.bitrateKbps() + " kbps  SID " + station.sid()
+                                    + (station.lic().isBlank() ? "" : "  LIC " + station.lic()),
+                            i == s.selectedService));
                 }
                 if (!stations.isEmpty()) {
                     var station = stations.get(s.selectedService);
                     sourceUrl = station.streamUrl().trim();
                     dabPlus = tx.getDabVersion() == DabVersion.DAB_PLUS;
                     dabBitrate = station.bitrateKbps();
-                    serviceInfo += "  " + station.label() + "  " + station.bitrateKbps() + " kbps";
+                    serviceInfo = "LIC " + (station.lic().isBlank() ? "—" : station.lic()) + "  "
+                            + serviceInfo + "  " + station.label() + "  " + station.bitrateKbps() + " kbps";
                 }
             }
         } else {
@@ -182,7 +185,8 @@ public final class SpectrumAnalyserState {
                         if (signalPresent) {
                             sourceUrl = tx.getStreamUrl() == null ? "" : tx.getStreamUrl().trim();
                             drmBitrate = tx.getOpusBitrateKbps();
-                            serviceInfo = tx.getServiceLabel() + "  " + tx.getShortLabel()
+                            serviceInfo = "LIC " + (tx.getLic().isBlank() ? "—" : tx.getLic()) + "  "
+                                    + tx.getServiceLabel() + "  " + tx.getShortLabel()
                                     + "  Mode " + tx.getModeLabel() + "  " + tx.getOpusBitrateKbps()
                                     + " kbps  " + tx.getTextMessage();
                         }

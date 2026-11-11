@@ -107,6 +107,8 @@ public class RadioMenu extends AbstractContainerMenu {
     private final DataSlot[] dabLabelSlots;
     private final DataSlot dabDlsLengthSlot;
     private final DataSlot[] dabDlsSlots;
+    private final DataSlot dabLicLengthSlot;
+    private final DataSlot[] dabLicSlots;
     private final DataSlot fmStepModeSlot;
     private final DataSlot afEnabledSlot;
     private final DataSlot sonyScanningSlot;
@@ -195,6 +197,8 @@ public class RadioMenu extends AbstractContainerMenu {
         dabLabelSlots = addCharSlots(32);
         dabDlsLengthSlot = addDataSlot(DataSlot.standalone());
         dabDlsSlots = addCharSlots(64);
+        dabLicLengthSlot = addDataSlot(DataSlot.standalone());
+        dabLicSlots = addCharSlots(16);
         fmStepModeSlot = addDataSlot(DataSlot.standalone());
         afEnabledSlot = addDataSlot(DataSlot.standalone());
         sonyScanningSlot = addDataSlot(DataSlot.standalone());
@@ -235,6 +239,7 @@ public class RadioMenu extends AbstractContainerMenu {
         blackSonyStyleSlot.set(radioStack != null && radioStack.is(Radio.BLACK_SONY_RADIO_ITEM.get()) ? 1 : 0);
         setStringSlots("", dabLabelLengthSlot, dabLabelSlots, 32);
         setStringSlots("", dabDlsLengthSlot, dabDlsSlots, 64);
+        setStringSlots("", dabLicLengthSlot, dabLicSlots, 16);
         fmStepModeSlot.set(RadioItem.getFmStepMode(player));
         if (!isDabSupported()) {
             RadioItem.setMode(player, RadioItem.MODE_FM);
@@ -573,15 +578,18 @@ public class RadioMenu extends AbstractContainerMenu {
                             .findFirst().orElse(mux.stations().getFirst());
                     setStringSlots(station.label(), dabLabelLengthSlot, dabLabelSlots, 32);
                     setStringSlots(DabDlsResolver.text(station), dabDlsLengthSlot, dabDlsSlots, 64);
+                    setStringSlots(station.lic(), dabLicLengthSlot, dabLicSlots, 16);
                 } else {
                     setStringSlots("", dabLabelLengthSlot, dabLabelSlots, 32);
                     setStringSlots("", dabDlsLengthSlot, dabDlsSlots, 64);
+                    setStringSlots("", dabLicLengthSlot, dabLicSlots, 16);
                 }
             }
         }
         if (bestDabSignalDbuv <= -120.0) {
             setStringSlots("", dabLabelLengthSlot, dabLabelSlots, 32);
             setStringSlots("", dabDlsLengthSlot, dabDlsSlots, 64);
+            setStringSlots("", dabLicLengthSlot, dabLicSlots, 16);
         }
 
         double noiseFloorDbuv = SignalMath.calculateNoiseFloorDbuv(radioPosition);
@@ -979,6 +987,7 @@ public class RadioMenu extends AbstractContainerMenu {
     public boolean isBlackSonyStyle() { return blackSonyStyleSlot.get() > 0; }
     public String getDabLabel() { return readString(dabLabelLengthSlot, dabLabelSlots); }
     public String getDabDls() { return readString(dabDlsLengthSlot, dabDlsSlots); }
+    public String getDabLic() { return readString(dabLicLengthSlot, dabLicSlots); }
 
     public int getFmStepMode() {
         return fmStepModeSlot.get();

@@ -21,7 +21,7 @@ public class DrmTransmitterMenu extends AbstractContainerMenu {
     private final DataSlot mp3Bitrate = addDataSlot(DataSlot.standalone());
     private final DataSlot antenna = addDataSlot(DataSlot.standalone());
     private final TextSlots service = new TextSlots(64), shortName = new TextSlots(16), message = new TextSlots(256),
-            stream = new TextSlots(1024), image = new TextSlots(1024);
+            stream = new TextSlots(1024), image = new TextSlots(1024), lic = new TextSlots(16);
 
     public DrmTransmitterMenu(int id, Inventory inventory) { this(id, inventory, null); }
     public DrmTransmitterMenu(int id, Inventory inventory, @Nullable DrmTransmitterBlockEntity tx) {
@@ -37,6 +37,7 @@ public class DrmTransmitterMenu extends AbstractContainerMenu {
         antenna.set(tx.hasAntennaConnected() ? 1 : 0);
         service.set(tx.getServiceLabel()); shortName.set(tx.getShortLabel()); message.set(tx.getTextMessage());
         stream.set(tx.getStreamUrl()); image.set(tx.getImageUrl());
+        lic.set(tx.getLic());
     }
     @Override public void broadcastChanges() { sync(); super.broadcastChanges(); }
     public int frequency() { return frequency.get(); }
@@ -49,6 +50,7 @@ public class DrmTransmitterMenu extends AbstractContainerMenu {
     public String message() { return message.get(); }
     public String stream() { return stream.get(); }
     public String image() { return image.get(); }
+    public String lic() { return lic.get(); }
     public int opusBitrate() { return new int[]{24, 20, 16, 12}[Math.max(0, Math.min(3, mode()))] * bandwidth() / 5; }
     public int mp3Bitrate() { return mp3Bitrate.get(); }
     public double minimumSnr() { return new int[]{15, 12, 9, 6}[Math.max(0, Math.min(3, mode()))]

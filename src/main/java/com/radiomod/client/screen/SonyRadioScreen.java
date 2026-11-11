@@ -221,6 +221,9 @@ public class SonyRadioScreen extends AbstractContainerScreen<RadioMenu> {
                     266, 98, lcdText, false);
             g.drawString(font, dab() ? "FIC " + state(menu.getDabFicState()) + "  MSC " + state(menu.getDabMscState())
                     : "RDS BER " + menu.getRdsBerPercent() + "%", 266, 119, lcdDim, false);
+            String lic = dab() ? menu.getDabLic() : menu.getRdsLic();
+            g.drawString(font, font.plainSubstrByWidth("LIC: " + (lic.isBlank() ? "—" : lic), 135),
+                    266, 139, lcdDim, false);
         } else if (dab()) {
             String label = menu.getDabLabel().isBlank() ? "No DAB service" : menu.getDabLabel();
             g.drawString(font, font.plainSubstrByWidth(label, 174), 266, 78, lcdText, false);

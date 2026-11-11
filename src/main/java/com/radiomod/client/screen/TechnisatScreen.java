@@ -309,6 +309,10 @@ public class TechnisatScreen extends AbstractContainerScreen<Dx3Menu> {
             g.drawString(font, fit(subtitle.substring(start, Math.min(subtitle.length(), start + 30)), 172),
                     293, 98 + i * 16, TEXT, false);
         }
+        if (!info.title().isBlank() && !info.artist().isBlank()) {
+            g.drawString(font, fit((dab ? "DLS+" : "RT+") + "  " + info.artist(), 247), 217, 151, TEXT, false);
+            g.drawString(font, fit("TITLE  " + info.title(), 247), 217, 165, TEXT, false);
+        }
         if (dab) {
             int selected = selectedIndex();
             if (selected >= 0) {
@@ -338,7 +342,9 @@ public class TechnisatScreen extends AbstractContainerScreen<Dx3Menu> {
             g.drawString(font, "Bitrate: " + info.bitrateKbps() + " kbps", 220, 163, TEXT, false);
         } else g.drawString(font, info.active() && !info.ps().isBlank() ? "RDS: " + info.ps() : "RDS: unavailable",
                 220, 146, TEXT, false);
-        g.drawString(font, "INFO to return", 220, 185, DIM, false);
+        g.drawString(font, "LIC: " + fit(info.lic().isBlank() ? "—" : info.lic(), 160), 220,
+                state.dab() || state.drm() ? 180 : 163, TEXT, false);
+        g.drawString(font, "INFO to return", 220, 199, DIM, false);
     }
 
     private String fit(String text, int pixels) { return font.plainSubstrByWidth(text, pixels); }

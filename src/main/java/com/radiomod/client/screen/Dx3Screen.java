@@ -438,15 +438,23 @@ public class Dx3Screen extends AbstractContainerScreen<Dx3Menu> {
         }
         graphics.drawString(font, "PTY", 26, 166, ACCENT, false);
         graphics.drawString(font, PtyNames.name(info.pty()), 57, 166, TEXT, false);
+        graphics.drawString(font, fit("LIC: " + (info.lic().isBlank() ? "—" : info.lic()), 150),
+                260, 166, ACCENT, false);
         graphics.drawString(font, station.dab() ? "DLS" : "RT", 26, 188, ACCENT, false);
         String rt = info.active() ? info.rt() : "";
         if (rt.isBlank()) {
             graphics.drawString(font, "—", 57, 188, DIM, false);
         } else {
             List<FormattedCharSequence> lines = font.split(Component.literal(rt), 350);
-            for (int index = 0; index < Math.min(4, lines.size()); index++) {
+            int maxLines = info.title().isBlank() || info.artist().isBlank() ? 4 : 2;
+            for (int index = 0; index < Math.min(maxLines, lines.size()); index++) {
                 graphics.drawString(font, lines.get(index), 57, 188 + index * 13, TEXT, false);
             }
+        }
+        if (!info.title().isBlank() && !info.artist().isBlank()) {
+            graphics.drawString(font, station.dab() ? "DLS+" : "RT+", 26, 224, ACCENT, false);
+            graphics.drawString(font, fit("ARTIST: " + info.artist(), 350), 57, 224, TEXT, false);
+            graphics.drawString(font, fit("TITLE: " + info.title(), 350), 57, 239, TEXT, false);
         }
     }
 

@@ -43,6 +43,8 @@ public class DabServerBlockEntity extends BlockEntity {
     private static final String KEY_STREAM_URL = "StreamUrl";
     private static final String KEY_BITRATE_KBPS = "BitrateKbps";
     private static final String KEY_PTY = "Pty";
+    private static final String KEY_LIC = "Lic";
+    private static final String KEY_DLS_PLUS = "DlsPlus";
 
     private static final int MAX_ENSEMBLES = 16;
     private static final int MAX_STATIONS_PER_ENSEMBLE = 32;
@@ -210,6 +212,26 @@ public class DabServerBlockEntity extends BlockEntity {
             int bitrateKbps,
             int pty
     ) {
+        String previousLic = ensembleIndex >= 0 && ensembleIndex < ensembles.size()
+                && stationIndex >= 0 && stationIndex < ensembles.get(ensembleIndex).stations().size()
+                ? getStation(ensembleIndex, stationIndex).lic() : "";
+        return updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode, dlsText, dlsUrl,
+                motUrl, streamUrl, bitrateKbps, pty, previousLic);
+    }
+
+    public boolean updateStation(int ensembleIndex, int stationIndex, String sid, String label,
+            boolean dlsUrlMode, String dlsText, String dlsUrl, String motUrl, String streamUrl,
+            int bitrateKbps, int pty, String lic) {
+        boolean dlsPlus = ensembleIndex >= 0 && ensembleIndex < ensembles.size()
+                && stationIndex >= 0 && stationIndex < ensembles.get(ensembleIndex).stations().size()
+                && getStation(ensembleIndex, stationIndex).dlsPlus();
+        return updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode, dlsText, dlsUrl,
+                motUrl, streamUrl, bitrateKbps, pty, lic, dlsPlus);
+    }
+
+    public boolean updateStation(int ensembleIndex, int stationIndex, String sid, String label,
+            boolean dlsUrlMode, String dlsText, String dlsUrl, String motUrl, String streamUrl,
+            int bitrateKbps, int pty, String lic, boolean dlsPlus) {
         if (ensembleIndex < 0 || ensembleIndex >= ensembles.size()) {
             return false;
         }
@@ -246,7 +268,7 @@ public class DabServerBlockEntity extends BlockEntity {
                         motPng,
                         sanitizedStreamUrl,
                         sanitizedBitrateKbps,
-                        Math.max(0, Math.min(31, pty))
+                        Math.max(0, Math.min(31, pty)), sanitizeLic(lic), dlsPlus
                 )
         );
         setChanged();
@@ -328,6 +350,8 @@ public class DabServerBlockEntity extends BlockEntity {
                 stationTag.putString(KEY_STREAM_URL, sanitizeUrl(station.streamUrl(), 256));
                 stationTag.putInt(KEY_BITRATE_KBPS, Math.max(8, Math.min(512, station.bitrateKbps())));
                 stationTag.putInt(KEY_PTY, station.pty());
+                stationTag.putString(KEY_LIC, station.lic());
+                stationTag.putBoolean(KEY_DLS_PLUS, station.dlsPlus());
                 stationTags.add(stationTag);
             }
             ensembleTag.put(KEY_STATIONS, stationTags);
@@ -366,7 +390,9 @@ public class DabServerBlockEntity extends BlockEntity {
                                 stationTag.getByteArray(KEY_MOT_PNG),
                                 sanitizeUrl(stationTag.getString(KEY_STREAM_URL), 256),
                                 Math.max(8, Math.min(512, stationTag.getInt(KEY_BITRATE_KBPS))),
-                                Math.max(0, Math.min(31, stationTag.getInt(KEY_PTY)))
+                                Math.max(0, Math.min(31, stationTag.getInt(KEY_PTY))),
+                                sanitizeLic(stationTag.getString(KEY_LIC)),
+                                stationTag.getBoolean(KEY_DLS_PLUS)
                         )
                 );
             }
@@ -401,6 +427,12 @@ public class DabServerBlockEntity extends BlockEntity {
             return trimmed.substring(0, 32);
         }
         return trimmed;
+    }
+
+    private static String sanitizeLic(String value) {
+        if (value == null) return "";
+        String trimmed = value.strip();
+        return trimmed.substring(0, Math.min(16, trimmed.length()));
     }
 
     private static String sanitizeSid(String value) {
@@ -547,7 +579,17 @@ public class DabServerBlockEntity extends BlockEntity {
             byte[] motPng,
             String streamUrl,
             int bitrateKbps,
-            int pty
+            int pty,
+            String lic,
+            boolean dlsPlus
     ) {
+        public DabStationDefinition(String sid, String label, String dlsText, boolean dlsUrlMode,
+                String dlsUrl, String motUrl, byte[] motPng, String streamUrl, int bitrateKbps, int pty) {
+            this(sid, label, dlsText, dlsUrlMode, dlsUrl, motUrl, motPng, streamUrl, bitrateKbps, pty, "", false);
+        }
+        public DabStationDefinition(String sid, String label, String dlsText, boolean dlsUrlMode,
+                String dlsUrl, String motUrl, byte[] motPng, String streamUrl, int bitrateKbps, int pty, String lic) {
+            this(sid, label, dlsText, dlsUrlMode, dlsUrl, motUrl, motPng, streamUrl, bitrateKbps, pty, lic, false);
+        }
     }
 }

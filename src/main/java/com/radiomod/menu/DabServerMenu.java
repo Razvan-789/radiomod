@@ -51,8 +51,11 @@ public class DabServerMenu extends AbstractContainerMenu {
     private final DataSlot ensembleCountSlot;
     private final DataSlot stationCountSlot;
     private final DataSlot stationDlsUrlModeSlot;
+    private final DataSlot stationDlsPlusSlot;
     private final DataSlot stationSaveRevisionSlot;
     private final DataSlot stationPtySlot;
+    private final DataSlot stationLicLengthSlot;
+    private final DataSlot[] stationLicSlots;
     private final DataSlot muxCapacitySlot;
     private final DataSlot muxUsedSlot;
     private final DataSlot muxCorrectionSlot;
@@ -93,8 +96,11 @@ public class DabServerMenu extends AbstractContainerMenu {
         ensembleCountSlot = addDataSlot(DataSlot.standalone());
         stationCountSlot = addDataSlot(DataSlot.standalone());
         stationDlsUrlModeSlot = addDataSlot(DataSlot.standalone());
+        stationDlsPlusSlot = addDataSlot(DataSlot.standalone());
         stationSaveRevisionSlot = addDataSlot(DataSlot.standalone());
         stationPtySlot = addDataSlot(DataSlot.standalone());
+        stationLicLengthSlot = addDataSlot(DataSlot.standalone());
+        stationLicSlots = addCharSlots(16);
         muxCapacitySlot = addDataSlot(DataSlot.standalone());
         muxUsedSlot = addDataSlot(DataSlot.standalone());
         muxCorrectionSlot = addDataSlot(DataSlot.standalone());
@@ -133,6 +139,7 @@ public class DabServerMenu extends AbstractContainerMenu {
         selectedEnsembleSlot.set(0);
         selectedStationSlot.set(0);
         stationDlsUrlModeSlot.set(0);
+        stationDlsPlusSlot.set(0);
         stationSaveRevisionSlot.set(0);
         syncData();
     }
@@ -243,6 +250,7 @@ public class DabServerMenu extends AbstractContainerMenu {
         String streamUrl = station.streamUrl();
         int bitrateKbps = station.bitrateKbps();
         int pty = station.pty();
+        String lic = station.lic();
         boolean dlsUrlMode = stationDlsUrlModeSlot.get() > 0;
 
         switch (action) {
@@ -266,9 +274,20 @@ public class DabServerMenu extends AbstractContainerMenu {
                     statusMessage = "Invalid PTY";
                 }
             }
+            case "set_lic" -> lic = value;
+            case "set_dls_plus" -> {
+                boolean saved = blockEntity.updateStation(ensembleIndex, stationIndex, sid, label,
+                        dlsUrlMode, dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty, lic,
+                        Boolean.parseBoolean(value));
+                statusMessage = saved ? "DLS+ " + (Boolean.parseBoolean(value) ? "enabled" : "disabled")
+                        : "Could not update DLS+";
+                syncData();
+                broadcastChanges();
+                return;
+            }
             case "save_station" -> {
                 boolean saved = blockEntity.updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode,
-                        dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty);
+                        dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty, lic);
                 statusMessage = saved ? "Saved station profile" : "MUX full or invalid bitrate/PTY";
                 syncData();
                 broadcastChanges();
@@ -293,9 +312,10 @@ public class DabServerMenu extends AbstractContainerMenu {
                     } catch (NumberFormatException ignored) {
                         pty = station.pty();
                     }
+                    if (parts.length >= 9) lic = parts[8];
                 }
                 boolean saved = blockEntity.updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode,
-                        dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty);
+                        dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty, lic);
                 stationSaveRevisionSlot.set(stationSaveRevisionSlot.get() + 1);
                 statusMessage = saved ? "Saved station profile" : "MUX full or invalid bitrate/PTY";
                 syncData();
@@ -307,7 +327,7 @@ public class DabServerMenu extends AbstractContainerMenu {
             }
         }
         boolean saved = blockEntity.updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode,
-                dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty);
+                dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty, lic);
         statusMessage = saved ? "Updated " + action : "MUX full or invalid bitrate/PTY";
         syncData();
         broadcastChanges();
@@ -415,6 +435,8 @@ public class DabServerMenu extends AbstractContainerMenu {
     public int getStationPty() {
         return stationPtySlot.get();
     }
+    public boolean isStationDlsPlus() { return stationDlsPlusSlot.get() > 0; }
+    public String getStationLic() { return readString(stationLicLengthSlot, stationLicSlots); }
 
     public int getMuxCapacityKbps() {
         return muxCapacitySlot.get();
@@ -501,6 +523,8 @@ public class DabServerMenu extends AbstractContainerMenu {
     private void syncData() {
         if (blockEntity == null) {
             stationPtySlot.set(0);
+            stationDlsPlusSlot.set(0);
+            setStringSlots("", stationLicLengthSlot, stationLicSlots, 16);
             muxCapacitySlot.set(0);
             muxUsedSlot.set(0);
             muxCorrectionSlot.set(0);
@@ -521,6 +545,8 @@ public class DabServerMenu extends AbstractContainerMenu {
         ensembleCountSlot.set(ensembleCount);
         if (ensembleCount <= 0) {
             stationPtySlot.set(0);
+            stationDlsPlusSlot.set(0);
+            setStringSlots("", stationLicLengthSlot, stationLicSlots, 16);
             muxCapacitySlot.set(0);
             muxUsedSlot.set(0);
             muxCorrectionSlot.set(0);
@@ -552,6 +578,8 @@ public class DabServerMenu extends AbstractContainerMenu {
         stationCountSlot.set(stationCount);
         if (stationCount <= 0) {
             stationPtySlot.set(0);
+            stationDlsPlusSlot.set(0);
+            setStringSlots("", stationLicLengthSlot, stationLicSlots, 16);
             selectedStationSlot.set(0);
             stationDlsUrlModeSlot.set(0);
             setStringSlots("", stationSidLengthSlot, stationSidSlots, SID_MAX);
@@ -566,6 +594,8 @@ public class DabServerMenu extends AbstractContainerMenu {
             selectedStationSlot.set(stationIndex);
             DabStationDefinition station = blockEntity.getStation(ensembleIndex, stationIndex);
             stationPtySlot.set(station.pty());
+            stationDlsPlusSlot.set(station.dlsPlus() ? 1 : 0);
+            setStringSlots(station.lic(), stationLicLengthSlot, stationLicSlots, 16);
             stationDlsUrlModeSlot.set(station.dlsUrlMode() ? 1 : 0);
             setStringSlots(station.sid(), stationSidLengthSlot, stationSidSlots, SID_MAX);
             setStringSlots(station.label(), stationLabelLengthSlot, stationLabelSlots, LABEL_MAX);

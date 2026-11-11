@@ -3,6 +3,7 @@ package com.radiomod.client.screen;
 import com.radiomod.menu.TransmitterMenu;
 import com.radiomod.network.SetFmRdsConfigPayload;
 import com.radiomod.signal.RdsGroups;
+import com.radiomod.signal.DynamicRadioTextResolver;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -132,7 +133,14 @@ public class RdsConfigScreen extends Screen {
                 addRenderableWidget(Button.builder(Component.translatable("screen.radio.rds.tp.toggle"), b ->
                                 sendAction("set_tp", Boolean.toString(!menu.isRdsTpEnabled())))
                         .bounds(x + 146, y + 52, 140, 20).build());
-                fieldD = addEditBox(x, y + 80, Math.max(120, rowWidth - setWidth - 4), "AF list (e.g. 87.5 87.6)", 128);
+                int syncWidth = 112;
+                fieldD = addEditBox(x, y + 80, Math.max(120, rowWidth - setWidth - syncWidth - 8),
+                        "AF list (e.g. 87.5 87.6)", 1024);
+                addRenderableWidget(Button.builder(Component.literal("SYNC NETWORK"), b -> {
+                            fieldD.setValue(menu.getRdsText("af"));
+                            fieldD.setFocused(false);
+                            sendAction("sync_af_network", fieldA.getValue());
+                        }).bounds(setX - syncWidth - 4, y + 78, syncWidth, 20).build());
                 addRenderableWidget(Button.builder(Component.translatable("screen.radio.set"), b -> sendAction("set_af", fieldD.getValue()))
                         .bounds(setX, y + 78, setWidth, 20).build());
                 bind("pi", fieldA); bind("ps", fieldB); bind("pty", fieldC); bind("af", fieldD);
@@ -160,6 +168,10 @@ public class RdsConfigScreen extends Screen {
                 addRenderableWidget(Button.builder(Component.translatable("screen.radio.rds.url_mode.toggle"), b ->
                                 sendAction("set_rt_url_mode", Boolean.toString(!menu.isRdsRtUrlModeEnabled())))
                         .bounds(x, y + 80, 170, 20).build());
+                addRenderableWidget(Button.builder(Component.literal("Use audio stream ICY"), b -> {
+                            sendAction("set_rt_url", "icy:stream");
+                            fieldB.setValue("icy:stream");
+                        }).bounds(x + 176, y + 80, 170, 20).build());
                 bind("rt", fieldA); bind("rt_url", fieldB);
             }
             case "3A" -> {
@@ -171,6 +183,15 @@ public class RdsConfigScreen extends Screen {
                         .bounds(setX, y + 52, setWidth, 20).build());
                 bind("oda_group", fieldA);
             }
+            case "11A", "12A", "13A" -> addRenderableWidget(Button.builder(
+                            Component.literal(menu.isRdsOdaRtPlusEnabled() && group.equalsIgnoreCase(menu.getRdsText("oda_group"))
+                                    ? "RT+ ON (" + group + ")" : "Use " + group + " for RT+"), b -> {
+                                sendAction("set_oda_group", group);
+                                sendAction("set_group_enabled", RdsGroups.indexByCode("2A") + ":true");
+                                sendAction("set_group_enabled", RdsGroups.indexByCode("3A") + ":true");
+                                sendAction("set_group_enabled", selectedGroupIndex + ":true");
+                                if (!menu.isRdsOdaRtPlusEnabled()) sendAction("set_oda_rtplus", "true");
+                            }).bounds(x, y + 28, 170, 20).build());
             case "4A" -> addRenderableWidget(Button.builder(Component.translatable("screen.radio.rds.ct.toggle"), b ->
                             sendAction("set_ct_enabled", Boolean.toString(!menu.isRdsCtEnabled())))
                     .bounds(x, y + 28, 170, 20).build());
@@ -277,8 +298,16 @@ public class RdsConfigScreen extends Screen {
             drawStatus(guiGraphics, overlayX + 8, overlayY + 40, Component.translatable("screen.radio.rds.tp_status"), menu.isRdsTpEnabled());
         } else if ("2A".equals(group)) {
             drawStatus(guiGraphics, overlayX + 8, overlayY + 40, Component.translatable("screen.radio.rds.url_mode_status"), menu.isRdsRtUrlModeEnabled());
+            String source = fieldB == null ? menu.getRdsText("rt_url") : fieldB.getValue();
+            if ("icy:stream".equals(source) || (fieldA.getValue().isBlank()
+                    && (!menu.isRdsRtUrlModeEnabled() || source.isBlank())))
+                guiGraphics.drawString(font, DynamicRadioTextResolver.icyStatus(menu.getStreamUrl()),
+                        overlayX + 8, overlayY + 56, 0xCCCCCC, false);
         } else if ("3A".equals(group)) {
             drawStatus(guiGraphics, overlayX + 8, overlayY + 40, Component.translatable("screen.radio.rds.rtplus_status"), menu.isRdsOdaRtPlusEnabled());
+        } else if ("11A".equals(group) || "12A".equals(group) || "13A".equals(group)) {
+            guiGraphics.drawString(font, "RT+ group: " + menu.getRdsText("oda_group"), overlayX + 8,
+                    overlayY + 40, 0xCCCCCC, false);
         } else if ("4A".equals(group)) {
             drawStatus(guiGraphics, overlayX + 8, overlayY + 40, Component.translatable("screen.radio.rds.ct_status"), menu.isRdsCtEnabled());
         } else if ("14A".equals(group)) {

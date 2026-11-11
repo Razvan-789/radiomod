@@ -2,6 +2,7 @@ package com.radiomod.blockentity;
 
 import com.radiomod.Radio;
 import com.radiomod.signal.RdsFrameData;
+import com.radiomod.signal.ProgrammeTags;
 import com.radiomod.signal.RdsGroups;
 import com.radiomod.signal.DynamicRadioTextResolver;
 import com.radiomod.signal.SignalNetwork;
@@ -19,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class TransmitterBlockEntity extends BlockEntity {
     private static final int PS_MAX_CHARS = 512;
+    private static final int AF_MAX_CHARS = 32767;
     private static final int STREAM_URL_MAX_CHARS = 1024;
     private static final long DYNAMIC_PS_FRAME_INTERVAL_FRAMES = 24L; // 4s at 6 RDS frames/s
     private static final String KEY_FREQUENCY_KHZ = "FrequencyKhz";
@@ -60,7 +62,7 @@ public class TransmitterBlockEntity extends BlockEntity {
     private boolean rdsRtUrlMode = false;
     private String rdsRtUrl = "";
     private boolean rdsOdaRtPlus = false;
-    private String rdsOdaGroup = "5A";
+    private String rdsOdaGroup = "11A";
     private boolean rdsCtEnabled = false;
     private String rdsPtyn = "";
     private String rdsLongPs = "";
@@ -135,7 +137,7 @@ public class TransmitterBlockEntity extends BlockEntity {
             case "set_ps" -> rdsPs = sanitizeAscii(value, PS_MAX_CHARS);
             case "set_tp" -> rdsTp = Boolean.parseBoolean(value);
             case "set_pty" -> rdsPty = Math.max(0, Math.min(31, parseIntSafe(value, 0)));
-            case "set_af" -> rdsAf = sanitizeText(value, 64);
+            case "set_af" -> rdsAf = sanitizeText(value, AF_MAX_CHARS);
             case "set_ecc" -> rdsEcc = sanitizeText(value, 24);
             case "set_lic" -> rdsLic = sanitizeText(value, 24);
             case "set_pin" -> rdsPin = sanitizeText(value, 16);
@@ -146,7 +148,7 @@ public class TransmitterBlockEntity extends BlockEntity {
                 if (!rdsRtUrl.isBlank()) rdsRtUrlMode = true;
             }
             case "set_oda_rtplus" -> rdsOdaRtPlus = Boolean.parseBoolean(value);
-            case "set_oda_group" -> rdsOdaGroup = sanitizeText(value, 3);
+            case "set_oda_group" -> rdsOdaGroup = validRtPlusGroup(value);
             case "set_ct_enabled" -> rdsCtEnabled = Boolean.parseBoolean(value);
             case "set_ptyn" -> rdsPtyn = sanitizeAscii(value, 8);
             case "set_long_ps" -> rdsLongPs = sanitizeText(value, 32);
@@ -194,6 +196,18 @@ public class TransmitterBlockEntity extends BlockEntity {
 
     public boolean isRdsOdaRtPlus() {
         return rdsOdaRtPlus;
+    }
+
+    public boolean broadcastsRtPlus() {
+        return rdsOdaRtPlus && isRdsEnabled()
+                && isRdsGroupEnabled(RdsGroups.indexByCode("2A"))
+                && isRdsGroupEnabled(RdsGroups.indexByCode("3A"))
+                && isRdsGroupEnabled(RdsGroups.indexByCode(rdsOdaGroup));
+    }
+
+    private static String validRtPlusGroup(String value) {
+        String group = value == null ? "" : value.strip().toUpperCase(java.util.Locale.ROOT);
+        return group.equals("11A") || group.equals("12A") || group.equals("13A") ? group : "11A";
     }
 
     public boolean isRdsCtEnabled() {
@@ -245,7 +259,12 @@ public class TransmitterBlockEntity extends BlockEntity {
     }
 
     public String getCurrentRtText(long gameTime) {
-        return rdsRtUrlMode ? DynamicRadioTextResolver.text(rdsRtUrl) : rdsRt;
+        if (rdsRtUrlMode && !rdsRtUrl.isBlank()) {
+            return "icy:stream".equals(rdsRtUrl)
+                    ? DynamicRadioTextResolver.icyText(streamUrl)
+                    : DynamicRadioTextResolver.text(rdsRtUrl);
+        }
+        return rdsRt.isBlank() ? DynamicRadioTextResolver.icyText(streamUrl) : rdsRt;
     }
 
     public String getCurrentPsFrame(long gameTime) {
@@ -309,7 +328,10 @@ public class TransmitterBlockEntity extends BlockEntity {
             rt = rdsLongPs;
         }
 
-        return new RdsFrameData(groupCode, rdsPi, currentPsFrame(frame), rdsTp, rdsPty, sanitizeText(rt, 64));
+        ProgrammeTags tags = broadcastsRtPlus() && groupCode.equals(rdsOdaGroup)
+                ? ProgrammeTags.fromText(sanitizeText(getCurrentRtText(gameTime), 64)) : ProgrammeTags.EMPTY;
+        return new RdsFrameData(groupCode, rdsPi, currentPsFrame(frame), rdsTp, rdsPty,
+                sanitizeText(rt, 64), tags.title(), tags.artist());
     }
 
     private String currentPsFrame(long frame) {
@@ -444,7 +466,7 @@ public class TransmitterBlockEntity extends BlockEntity {
         rdsPs = sanitizeAscii(tag.getString(KEY_RDS_PS), PS_MAX_CHARS);
         rdsTp = tag.getBoolean(KEY_RDS_TP);
         rdsPty = Math.max(0, Math.min(31, tag.getInt(KEY_RDS_PTY)));
-        rdsAf = sanitizeText(tag.getString(KEY_RDS_AF), 64);
+        rdsAf = sanitizeText(tag.getString(KEY_RDS_AF), AF_MAX_CHARS);
         rdsEcc = sanitizeText(tag.getString(KEY_RDS_ECC), 24);
         rdsLic = sanitizeText(tag.getString(KEY_RDS_LIC), 24);
         rdsPin = sanitizeText(tag.getString(KEY_RDS_PIN), 16);
@@ -452,7 +474,7 @@ public class TransmitterBlockEntity extends BlockEntity {
         rdsRtUrlMode = tag.getBoolean(KEY_RDS_RT_URL_MODE);
         rdsRtUrl = sanitizeText(tag.getString(KEY_RDS_RT_URL), 200);
         rdsOdaRtPlus = tag.getBoolean(KEY_RDS_ODA_RTPLUS);
-        rdsOdaGroup = sanitizeText(tag.getString(KEY_RDS_ODA_GROUP), 3);
+        rdsOdaGroup = validRtPlusGroup(tag.getString(KEY_RDS_ODA_GROUP));
         rdsCtEnabled = tag.getBoolean(KEY_RDS_CT_ENABLED);
         rdsPtyn = sanitizeAscii(tag.getString(KEY_RDS_PTYN), 8);
         rdsLongPs = sanitizeText(tag.getString(KEY_RDS_LONG_PS), 32);

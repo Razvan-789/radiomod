@@ -271,14 +271,17 @@ public class RadioClient {
     private static int renderTechnisatReceiverHud(GuiGraphics g, Minecraft minecraft, int y) {
         SyncTechnisatReceiverHudPayload info = TechnisatPinnedState.fresh();
         int width = Math.min(270, g.guiWidth() - 16), x = g.guiWidth() - width - 8;
-        g.fill(x, y, x + width, y + 64, 0xE4081530);
+        boolean hasTags = info != null && info.active()
+                && !info.title().isBlank() && !info.artist().isBlank();
+        int height = hasTags ? 80 : 64;
+        g.fill(x, y, x + width, y + height, 0xE4081530);
         g.fill(x, y, x + width, y + 2, 0xFF2873D0);
         String band = info == null ? "RADIO" : info.mode() == RadioItem.MODE_DAB ? "DAB+"
                 : info.mode() == RadioItem.MODE_DRM ? "DRM" : "FM";
         g.drawString(minecraft.font, "TechniSat  " + band, x + 7, y + 7, 0xFFDCEAFF, false);
         if (info == null || !info.active()) {
             g.drawString(minecraft.font, "Signal unavailable", x + 7, y + 25, 0xFF9FB3D1, false);
-            return y + 64 + 6;
+            return y + height + 6;
         }
         String frequency = info.mode() == RadioItem.MODE_FM
                 ? String.format(Locale.ROOT, "%.2f MHz", info.frequencyKhz() / 1000.0)
@@ -286,11 +289,18 @@ public class RadioClient {
         String title = info.label().isBlank() ? frequency : info.label();
         g.drawString(minecraft.font, minecraft.font.plainSubstrByWidth(title, width - 14),
                 x + 7, y + 22, 0xFFF0F5FF, false);
-        g.drawString(minecraft.font, minecraft.font.plainSubstrByWidth(info.text(), width - 14),
-                x + 7, y + 37, 0xFFB8C9E4, false);
+        if (hasTags) {
+            g.drawString(minecraft.font, minecraft.font.plainSubstrByWidth(info.title(), width - 14),
+                    x + 7, y + 37, 0xFFF0F5FF, false);
+            g.drawString(minecraft.font, minecraft.font.plainSubstrByWidth(info.artist(), width - 14),
+                    x + 7, y + 52, 0xFFB8C9E4, false);
+        } else {
+            g.drawString(minecraft.font, minecraft.font.plainSubstrByWidth(info.text(), width - 14),
+                    x + 7, y + 37, 0xFFB8C9E4, false);
+        }
         g.drawString(minecraft.font, (info.rds() ? "RDS  " : "") + frequency
-                + (info.ct() ? "  " + info.time() : ""), x + 7, y + 51, 0xFF83ABDC, false);
-        return y + 64 + 6;
+                + (info.ct() ? "  " + info.time() : ""), x + 7, y + (hasTags ? 67 : 51), 0xFF83ABDC, false);
+        return y + height + 6;
     }
 
     private static void renderPortableDrmHud(GuiGraphics g, Minecraft minecraft, Player player,
@@ -332,6 +342,7 @@ public class RadioClient {
                 ? !info.longPs().isBlank() ? info.longPs() : info.ps().isBlank() ? mode : info.ps()
                 : dab ? "DAB Unavailable" : "FM Signal Lost";
         String radioText = active ? info.rt() : "";
+        boolean hasTags = active && !info.title().isBlank() && !info.artist().isBlank();
         int[] logo = dab && active ? Dx3PlayerState.getLogoPixels() : null;
         int width = Math.min(280, graphics.guiWidth() - 16);
         int height = 70;
@@ -356,15 +367,24 @@ public class RadioClient {
         }
         graphics.drawString(minecraft.font, minecraft.font.plainSubstrByWidth(name, width - textX - 7),
                 x + textX, y + 20, 0xFFF0F5F8, false);
-        graphics.drawString(minecraft.font, dab ? "DLS" : "RT", x + textX, y + 34, 0xFF70C2DC, false);
-        if (!radioText.isBlank()) {
-            var lines = minecraft.font.split(Component.literal(radioText), width - textX - 7);
-            for (int line = 0; line < Math.min(2, lines.size()); line++) {
-                graphics.drawString(minecraft.font, lines.get(line), x + textX,
-                        y + 46 + line * 11, 0xFFA3BBC7, false);
-            }
+        if (hasTags) {
+            graphics.drawString(minecraft.font,
+                    minecraft.font.plainSubstrByWidth(info.title(), width - textX - 7),
+                    x + textX, y + 38, 0xFFF0F5F8, false);
+            graphics.drawString(minecraft.font,
+                    minecraft.font.plainSubstrByWidth(info.artist(), width - textX - 7),
+                    x + textX, y + 53, 0xFFA3BBC7, false);
         } else {
-            graphics.drawString(minecraft.font, "—", x + textX, y + 46, 0xFF78919D, false);
+            graphics.drawString(minecraft.font, dab ? "DLS" : "RT", x + textX, y + 34, 0xFF70C2DC, false);
+            if (!radioText.isBlank()) {
+                var lines = minecraft.font.split(Component.literal(radioText), width - textX - 7);
+                for (int line = 0; line < Math.min(2, lines.size()); line++) {
+                    graphics.drawString(minecraft.font, lines.get(line), x + textX,
+                            y + 46 + line * 11, 0xFFA3BBC7, false);
+                }
+            } else {
+                graphics.drawString(minecraft.font, "—", x + textX, y + 46, 0xFF78919D, false);
+            }
         }
         for (int bar = 0; bar < 5; bar++) {
             int barHeight = 3 + bar * 2;
