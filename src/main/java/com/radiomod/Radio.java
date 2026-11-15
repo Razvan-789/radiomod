@@ -75,7 +75,10 @@ import com.radiomod.network.SetFmRdsConfigPayload;
 import com.radiomod.network.UploadAudioChunkPayload;
 import com.radiomod.network.AudioLibraryActionPayload;
 import com.radiomod.network.SyncAudioLibraryPayload;
+import com.radiomod.network.RequestStreamHistoryPayload;
+import com.radiomod.network.SyncStreamHistoryPayload;
 import com.radiomod.server.AudioLibraryManager;
+import com.radiomod.server.StreamHistory;
 import com.radiomod.block.RecorderBlock;
 import com.radiomod.menu.RecorderMenu;
 import com.radiomod.menu.DirectionalAntennaMenu;
@@ -483,6 +486,7 @@ public class Radio {
         NeoForge.EVENT_BUS.addListener(com.radiomod.signal.AdsbReception::onChunkLoad);
         NeoForge.EVENT_BUS.addListener(com.radiomod.signal.AdsbReception::onChunkUnload);
         NeoForge.EVENT_BUS.addListener(TransmitterPresets::onPlayerClone);
+        NeoForge.EVENT_BUS.addListener(StreamHistory::onPlayerClone);
 
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);
@@ -643,6 +647,19 @@ public class Radio {
         registrar.playToClient(SyncAudioLibraryPayload.TYPE, SyncAudioLibraryPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         com.radiomod.client.screen.AudioLibraryScreen.receive(payload)));
+        registrar.playToServer(RequestStreamHistoryPayload.TYPE, RequestStreamHistoryPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player
+                            && player.containerMenu.containerId == payload.containerId()
+                            && (player.containerMenu instanceof TransmitterMenu
+                            || player.containerMenu instanceof DrmTransmitterMenu
+                            || player.containerMenu instanceof DabServerMenu)
+                            && player.containerMenu.stillValid(player))
+                        StreamHistory.sendPage(player, payload.containerId(), payload.page());
+                }));
+        registrar.playToClient(SyncStreamHistoryPayload.TYPE, SyncStreamHistoryPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        com.radiomod.client.screen.StreamHistoryScreen.receive(payload)));
         registrar.playToServer(
                 SelectDx3StationPayload.TYPE,
                 SelectDx3StationPayload.STREAM_CODEC,

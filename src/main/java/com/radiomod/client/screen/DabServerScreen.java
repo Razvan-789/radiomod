@@ -46,6 +46,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
     private EditBox dlsUrlInput;
     private EditBox motUrlInput;
     private EditBox streamUrlInput;
+    private Button streamHistoryButton;
     private EditBox bitrateInput;
     private EditBox ptyInput;
     private EditBox licInput;
@@ -117,7 +118,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
         dlsTextInput = addInput(left + 294, top + 134, 190, 128, "screen.radio.dab_server.dls_text", "screen.radio.dab_server.dls_text_hint");
         dlsUrlInput = addInput(left + 294, top + 134, 190, 200, "screen.radio.dab_server.dls_url", "screen.radio.dab_server.dls_url_hint");
         motUrlInput = addInput(left + 294, top + 158, 190, 200, "screen.radio.dab_server.mot_url", "screen.radio.dab_server.mot_url_hint");
-        streamUrlInput = addInput(left + 294, top + 182, 190, 200, "screen.radio.dab_server.stream_url", "screen.radio.dab_server.stream_url_hint");
+        streamUrlInput = addInput(left + 294, top + 182, 116, 200, "screen.radio.dab_server.stream_url", "screen.radio.dab_server.stream_url_hint");
         bitrateInput = addInput(left + 294, top + 206, 190, 4, "screen.radio.dab_server.bitrate", "screen.radio.dab_server.bitrate_hint");
         bitrateInput.setFilter(this::isNumericInput);
 
@@ -147,6 +148,13 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
                 })
                 .bounds(left + 204, top + 182, 84, 20).build());
         uploadAudioButton.setTooltip(Tooltip.create(Component.literal("Choose audio uploaded with a Recorder")));
+        streamHistoryButton = addRenderableWidget(Button.builder(Component.literal("HISTORY"), button -> {
+                    if (stationDirty) saveStationForm();
+                    minecraft.setScreen(new StreamHistoryScreen(this, menu.containerId, url -> {
+                        streamUrlInput.setValue(url);
+                        saveStationForm();
+                    }));
+                }).bounds(left + 414, top + 182, 70, 20).build());
         for (EditBox input : stationInputs()) {
             input.setResponder(value -> {
                 if (!syncingInputs) {
@@ -402,6 +410,7 @@ public class DabServerScreen extends AbstractContainerScreen<DabServerMenu> {
         motUrlInput.visible = detail;
         streamUrlInput.visible = detail;
         uploadAudioButton.visible = detail;
+        streamHistoryButton.visible = detail;
         bitrateInput.visible = detail;
         dlsModeButton.visible = detail;
         dlsPlusButton.visible = detail;

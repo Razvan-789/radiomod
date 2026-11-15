@@ -9,6 +9,7 @@ import com.radiomod.blockentity.DabTransmitterBlockEntity;
 import com.radiomod.blockentity.DrmTransmitterBlockEntity;
 import com.radiomod.blockentity.TransmitterBlockEntity;
 import com.radiomod.signal.RegistryCountries;
+import com.radiomod.signal.PtyNames;
 import com.radiomod.signal.SignalMath;
 import com.radiomod.signal.SignalNetwork;
 import java.awt.Color;
@@ -19,9 +20,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -126,7 +130,7 @@ public final class SquaremapIntegration {
             if (world == null) continue;
             Layers layers = ensureLayers(world, dimension);
             layers.clear(world);
-            List<Tx> transmitters = scan(level, countries);
+            List<Tx> transmitters = scan(level, countries, assets);
             List<Site> sites = merge(dimension, transmitters);
             JsonObject jsonWorld = new JsonObject();
             jsonWorld.addProperty("dimension", dimension);
@@ -135,7 +139,7 @@ public final class SquaremapIntegration {
                 registerIcon(map, site);
                 Marker icon = Marker.icon(Point.of(site.center.getX() + .5, site.center.getZ() + .5),
                         iconKey(site, false), ICON_SIZES[iconTier(site.power)])
-                        .markerOptions(MarkerOptions.builder().clickTooltip(tooltip(site)).hoverTooltip(
+                        .markerOptions(MarkerOptions.builder().hoverTooltip(
                                 site.programmes.size() + " radio service(s)").build());
                 layers.sites.addMarker(Key.of("radio_site_" + site.id), icon);
                 jsonSites.add(siteJson(site));
@@ -171,7 +175,7 @@ public final class SquaremapIntegration {
         return layers;
     }
 
-    private static List<Tx> scan(ServerLevel level, RegistryCountries countries) {
+    private static List<Tx> scan(ServerLevel level, RegistryCountries countries, Path assets) throws IOException {
         List<Tx> result = new ArrayList<>();
         for (BlockPos pos : SignalNetwork.getTransmitters(level)) {
             BlockEntity be = level.getBlockEntity(pos);
@@ -185,10 +189,20 @@ public final class SquaremapIntegration {
             } else if (be instanceof DabTransmitterBlockEntity dab) {
                 DabServerBlockEntity.DabEnsembleDefinition mux = dab.resolveBroadcastMux();
                 List<Programme> programmes = new ArrayList<>();
-                if (mux != null) for (var station : mux.stations()) programmes.add(new Programme(
-                        station.label(), station.sid(), countries.countryFor(station.sid()),
-                        dab.getFrequencyKhz(), dab.getPowerW(), dab.getDabVersion().getLabel(),
-                        coverageLabel(pos, dab.getFrequencyKhz())));
+                if (mux != null) for (var station : mux.stations()) {
+                    boolean hasMot = (station.motPng() != null && station.motPng().length > 0)
+                            || !station.motUrl().isBlank();
+                    String remarks = (hasMot
+                            ? "MOT Slideshow" : "") + (station.dlsPlus()
+                            ? (hasMot ? ", DLS+" : "DLS+") : "");
+                    programmes.add(new Programme(station.label(), station.sid(), countries.countryFor(station.sid()),
+                            dab.getFrequencyKhz(), dab.getPowerW(), dab.getDabVersion().getLabel(),
+                            coverageLabel(pos, dab.getFrequencyKhz()), logoFor(assets, station), mux.name(),
+                            PtyNames.name(station.pty()), dab.getDabVersion().getLabel() + " / "
+                                    + dab.getDabVersion().getCodecLabel(), station.bitrateKbps(),
+                            dab.getErrorCorrection().getLabel(), remarks, publicHttpUrl(station.streamUrl()),
+                            !station.streamUrl().isBlank()));
+                }
                 result.add(new Tx(pos, "DAB", dab.getFrequencyKhz(), dab.getPowerW(), dab.hasAntennaConnected(),
                         dab.isDirectionalEnabled(), dab.getDirectionDegrees(), programmes, be));
             } else if (be instanceof DrmTransmitterBlockEntity drm) {
@@ -234,6 +248,33 @@ public final class SquaremapIntegration {
     private static String coverageLabel(BlockPos pos, int frequencyKhz) {
         return "Radio coverage " + formatFrequency(frequencyKhz) + " MHz @ "
                 + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+    }
+
+    private static String logoFor(Path assets, DabServerBlockEntity.DabStationDefinition station) throws IOException {
+        byte[] png = station.motPng();
+        if (png == null || png.length == 0) return publicHttpUrl(station.motUrl());
+        try {
+            String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(png));
+            Path logos = assets.resolve("logos");
+            Files.createDirectories(logos);
+            Path file = logos.resolve(hash + ".png");
+            if (!Files.isRegularFile(file)) Files.write(file, png);
+            return "radio-map/logos/" + hash + ".png";
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private static String publicHttpUrl(String value) {
+        if (value == null || value.isBlank()) return "";
+        try {
+            java.net.URI uri = java.net.URI.create(value.strip());
+            String scheme = uri.getScheme();
+            return scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                    ? uri.toString() : "";
+        } catch (IllegalArgumentException invalid) {
+            return "";
+        }
     }
 
     private static void addCoverage(MapWorld world, Layers layers, String dimension, Tx tx,
@@ -421,21 +462,6 @@ public final class SquaremapIntegration {
         return Key.of("radio_tx_" + (selected ? "sel_" : "") + site.id + "_" + iconTier(site.power));
     }
 
-    private static String tooltip(Site site) {
-        StringBuilder html = new StringBuilder("<strong>Radio site</strong> · ")
-                .append(site.center.getX()).append(", ").append(site.center.getY()).append(", ")
-                .append(site.center.getZ()).append("<br><table><tr><th>Freq</th><th>Station</th><th>PI/SID</th><th>ERP kW</th></tr>");
-        for (Programme programme : site.programmes) html.append("<tr><td>").append(formatFrequency(programme.frequencyKhz))
-                .append("</td><td>").append(escape(programme.name)).append("</td><td>")
-                .append(escape(programme.code)).append("</td><td>")
-                .append(String.format(java.util.Locale.ROOT, "%.3f", programme.powerW / 1000.0))
-                .append("</td></tr>");
-        return html.append("</table>").toString();
-    }
-    private static String escape(String text) {
-        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                .replace("\"", "&quot;").replace("'", "&#39;");
-    }
     private static String formatFrequency(int khz) {
         return String.format(java.util.Locale.ROOT, "%.3f", khz / 1000.0);
     }
@@ -452,6 +478,11 @@ public final class SquaremapIntegration {
             item.addProperty("country", p.country); item.addProperty("frequency", p.frequencyKhz);
             item.addProperty("power", p.powerW); item.addProperty("type", p.type);
             item.addProperty("coverage", p.coverage);
+            item.addProperty("logo", p.logo); item.addProperty("mux", p.mux);
+            item.addProperty("pty", p.pty); item.addProperty("coding", p.coding);
+            item.addProperty("bitrate", p.bitrate); item.addProperty("protection", p.protection);
+            item.addProperty("remarks", p.remarks); item.addProperty("stream", p.streamUrl);
+            item.addProperty("hasAudio", p.hasAudio);
             programmes.add(item);
         }
         json.add("programmes", programmes);
@@ -474,7 +505,15 @@ public final class SquaremapIntegration {
     }
 
     private record Programme(String name, String code, String country, int frequencyKhz, int powerW,
-                             String type, String coverage) { }
+                             String type, String coverage, String logo, String mux, String pty,
+                             String coding, int bitrate, String protection, String remarks, String streamUrl,
+                             boolean hasAudio) {
+        private Programme(String name, String code, String country, int frequencyKhz, int powerW,
+                          String type, String coverage) {
+            this(name, code, country, frequencyKhz, powerW, type, coverage,
+                    "", "", "", "", 0, "", "", "", false);
+        }
+    }
     private record Tx(BlockPos pos, String kind, int frequencyKhz, int power, boolean antenna,
                       boolean directional, int azimuth, List<Programme> programmes, BlockEntity entity) { }
     private record Site(String id, BlockPos center, int power, List<Programme> programmes) { }

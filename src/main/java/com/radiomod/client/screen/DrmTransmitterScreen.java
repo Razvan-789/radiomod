@@ -30,6 +30,8 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         super.init(); fields.clear(); lastSynced.clear();
         int x = leftPos, y = topPos, w = imageWidth;
         addRenderableWidget(Button.builder(Component.literal("X"), b -> onClose()).bounds(x + w - 30, y + 8, 18, 18).build());
+        addRenderableWidget(Button.builder(Component.literal("PRESETS"), b -> openPresets())
+                .bounds(x + w - 126, y + 7, 90, 20).build());
         rfTab = addRenderableWidget(Button.builder(Component.literal("RF / PROPAGATION"), b -> { commit(); servicePage = false; page(); })
                 .bounds(x + 12, y + 42, (w - 28) / 2, 20).build());
         serviceTab = addRenderableWidget(Button.builder(Component.literal("SERVICE / AUDIO"), b -> { commit(); servicePage = true; page(); })
@@ -67,6 +69,13 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
             commit();
             minecraft.setScreen(new AudioLibraryScreen(this, menu.containerId, false));
         }).bounds(x + 16, y + 267, 90, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("HISTORY"), b -> {
+            commit();
+            minecraft.setScreen(new StreamHistoryScreen(this, menu.containerId, url -> {
+                fields.get("stream").setValue(url);
+                commit();
+            }));
+        }).bounds(x + 110, y + 267, Math.min(90, w - 247), 20).build());
         page();
     }
     private EditBox input(int x, int y, int width, String hint, String value, int max) {
@@ -91,6 +100,19 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         rfTab.active = servicePage; serviceTab.active = !servicePage;
     }
     private void send(int id) { if (minecraft != null && minecraft.gameMode != null) minecraft.gameMode.handleInventoryButtonClick(menu.containerId, id); }
+    private void openPresets() {
+        if (minecraft == null) return;
+        commit();
+        minecraft.setScreen(new TransmitterPresetScreen(this, "DRM", menu::hasPreset, menu::presetLabel,
+                this::send, this::afterPresetLoad, DrmTransmitterMenu.PRESET_SAVE_BASE,
+                DrmTransmitterMenu.PRESET_LOAD_BASE));
+    }
+    private void afterPresetLoad() {
+        for (var entry : fields.entrySet()) {
+            entry.getValue().setValue(lastSynced.get(entry.getKey()));
+            entry.getValue().setFocused(false);
+        }
+    }
     private void applyNumber(EditBox box, int base) {
         try { if (!box.getValue().isBlank()) send(base + Integer.parseInt(box.getValue())); }
         catch (NumberFormatException ignored) { }

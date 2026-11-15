@@ -43,6 +43,26 @@ public final class TransmitterPresets {
         return byType.contains(Integer.toString(slot)) ? byType.getCompound(Integer.toString(slot)).copy() : null;
     }
 
+    public static String label(Player player, String type, int slot) {
+        CompoundTag preset = load(player, type, slot);
+        if (preset == null) return "Empty";
+        return switch (type) {
+            case "fm" -> compact(preset.getString("RdsPs"), 25) + "  ·  PI "
+                    + compact(preset.getString("RdsPi"), 4);
+            case "dab" -> compact(preset.getString("EnsembleName"), 27) + "  ·  EID "
+                    + preset.getInt("EnsembleId");
+            case "drm" -> compact(preset.getString("ServiceLabel"), 25) + "  ·  "
+                    + compact(preset.getString("ShortLabel"), 12);
+            default -> "Saved";
+        };
+    }
+
+    private static String compact(String text, int max) {
+        String value = text == null ? "" : text.strip();
+        if (value.isEmpty()) return "—";
+        return value.length() <= max ? value : value.substring(0, max - 1) + "…";
+    }
+
     public static void onPlayerClone(PlayerEvent.Clone event) {
         CompoundTag original = event.getOriginal().getPersistentData();
         if (original.contains(KEY)) {

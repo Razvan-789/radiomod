@@ -26,6 +26,22 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         super(Radio.DRM_TRANSMITTER_BLOCK_ENTITY.get(), pos, state);
     }
     public int getFrequencyKhz() { return frequencyKhz; }
+    public CompoundTag createPreset(HolderLookup.Provider registries) {
+        CompoundTag preset = saveWithoutMetadata(registries);
+        preset.remove("FrequencyKhz"); preset.remove("PowerW"); preset.remove("AntennaPos");
+        return preset;
+    }
+    public void applyPreset(CompoundTag preset, HolderLookup.Provider registries) {
+        CompoundTag settings = saveWithoutMetadata(registries);
+        for (String key : preset.getAllKeys()) {
+            if (!key.equals("FrequencyKhz") && !key.equals("PowerW") && !key.equals("AntennaPos")
+                    && !key.equals("id") && !key.equals("x") && !key.equals("y") && !key.equals("z"))
+                settings.put(key, preset.get(key).copy());
+        }
+        loadAdditional(settings, registries);
+        streamUrl = com.radiomod.server.ServerAudioProxy.restartUploadedAudioClock(streamUrl);
+        setChanged();
+    }
     public int getPowerW() { return powerW; }
     public int getMode() { return mode; }
     public String getModeLabel() { return "ABCD".substring(mode, mode + 1); }

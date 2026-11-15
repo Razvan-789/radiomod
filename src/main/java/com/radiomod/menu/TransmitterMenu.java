@@ -5,6 +5,7 @@ import com.radiomod.blockentity.TransmitterBlockEntity;
 import com.radiomod.signal.SignalMath;
 import com.radiomod.signal.SignalNetwork;
 import com.radiomod.server.TransmitterPresets;
+import com.radiomod.server.StreamHistory;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,9 @@ public class TransmitterMenu extends AbstractContainerMenu {
             rdsEcc = new TextSlots(24), rdsLic = new TextSlots(24), rdsPin = new TextSlots(16),
             rdsRt = new TextSlots(64), rdsRtUrl = new TextSlots(200), rdsOdaGroup = new TextSlots(3),
             rdsPtyn = new TextSlots(8), rdsLongPs = new TextSlots(32);
+    private final TextSlots[] presetLabels = {
+            new TextSlots(52), new TextSlots(52), new TextSlots(52)
+    };
 
     public TransmitterMenu(int containerId, Inventory inventory) {
         this(containerId, inventory, null);
@@ -69,6 +73,7 @@ public class TransmitterMenu extends AbstractContainerMenu {
         this.owner = inventory.player;
         presetMaskSlot = addDataSlot(DataSlot.standalone());
         presetMaskSlot.set(TransmitterPresets.occupiedMask(owner, "fm"));
+        syncPresetLabels();
 
         frequencyKhzSlot = addDataSlot(DataSlot.standalone());
         powerWSlot = addDataSlot(DataSlot.standalone());
@@ -179,6 +184,7 @@ public class TransmitterMenu extends AbstractContainerMenu {
     @Override
     public void broadcastChanges() {
         presetMaskSlot.set(TransmitterPresets.occupiedMask(owner, "fm"));
+        syncPresetLabels();
         if (blockEntity != null) {
             frequencyKhzSlot.set(SignalMath.clampFmFrequencyKhz(blockEntity.getFrequencyKhz()));
             powerWSlot.set(SignalMath.clampPowerW(blockEntity.getPowerW()));
@@ -205,6 +211,15 @@ public class TransmitterMenu extends AbstractContainerMenu {
     public boolean hasPreset(int slot) {
         return slot >= 0 && slot < TransmitterPresets.SLOT_COUNT
                 && (presetMaskSlot.get() & (1 << slot)) != 0;
+    }
+
+    public String presetLabel(int slot) {
+        return slot >= 0 && slot < presetLabels.length ? presetLabels[slot].get() : "Empty";
+    }
+
+    private void syncPresetLabels() {
+        for (int slot = 0; slot < presetLabels.length; slot++)
+            presetLabels[slot].set(TransmitterPresets.label(owner, "fm", slot));
     }
 
     public int getPowerW() {
@@ -300,7 +315,14 @@ public class TransmitterMenu extends AbstractContainerMenu {
             syncAfNetwork(value);
             return;
         }
+        if ("sync_stream_network".equals(action)) {
+            syncStreamNetwork();
+            return;
+        }
         blockEntity.applyRdsConfigAction(action, value);
+        if (action.equals("set_stream_url") || action.equals("set_pi") || action.equals("set_ps"))
+            StreamHistory.remember(owner, "FM", blockEntity.getStreamUrl(),
+                    blockEntity.getRdsPi(), blockEntity.getRdsPs());
         broadcastChanges();
     }
 
@@ -335,6 +357,42 @@ public class TransmitterMenu extends AbstractContainerMenu {
         player.displayClientMessage(Component.literal("Synced " + frequencies.size() + " AF frequencies to "
                 + network.size() + " FM transmitters with PI " + pi.toUpperCase(java.util.Locale.ROOT) + "."
                 + (af.length() > AF_PREVIEW_MAX ? " The editor shows the first 1024 characters." : "")), false);
+    }
+
+    private void syncStreamNetwork() {
+        if (!(owner instanceof ServerPlayer player)) return;
+        String pi = blockEntity.getRdsPi();
+        if (pi == null || !pi.matches("(?i)[0-9a-f]{4}")) {
+            player.displayClientMessage(Component.literal("Set a valid four-digit PI code first."), false);
+            return;
+        }
+        List<TransmitterBlockEntity> network = new ArrayList<>();
+        java.util.Map<String, Integer> usage = new java.util.HashMap<>();
+        for (ServerLevel level : player.getServer().getAllLevels()) {
+            for (BlockPos pos : SignalNetwork.getTransmitters(level)) {
+                if (level.getBlockEntity(pos) instanceof TransmitterBlockEntity fm
+                        && pi.equalsIgnoreCase(fm.getRdsPi())) {
+                    network.add(fm);
+                    String stream = fm.getStreamUrl().strip();
+                    if (!stream.isBlank()) usage.merge(stream, 1, Integer::sum);
+                }
+            }
+        }
+        if (usage.isEmpty()) {
+            player.displayClientMessage(Component.literal("No stream is set on this PI network."), false);
+            return;
+        }
+        String current = blockEntity.getStreamUrl().strip();
+        String selected = usage.entrySet().stream()
+                .sorted(java.util.Comparator.<java.util.Map.Entry<String, Integer>>comparingInt(java.util.Map.Entry::getValue)
+                        .reversed().thenComparing(entry -> entry.getKey().equals(current) ? 0 : 1)
+                        .thenComparing(java.util.Map.Entry::getKey))
+                .findFirst().orElseThrow().getKey();
+        for (TransmitterBlockEntity fm : network) fm.applyRdsConfigAction("set_stream_url", selected);
+        StreamHistory.remember(owner, "FM", selected, pi, blockEntity.getRdsPs());
+        broadcastChanges();
+        player.displayClientMessage(Component.literal("Synced the most used stream to " + network.size()
+                + " FM transmitters with PI " + pi.toUpperCase(java.util.Locale.ROOT) + "."), false);
     }
 
     public void setUploadedAudioSource(String source) {

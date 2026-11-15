@@ -4,6 +4,7 @@ import com.radiomod.Radio;
 import com.radiomod.blockentity.DabServerBlockEntity;
 import com.radiomod.blockentity.DabServerBlockEntity.DabEnsembleDefinition;
 import com.radiomod.blockentity.DabServerBlockEntity.DabStationDefinition;
+import com.radiomod.server.StreamHistory;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -45,6 +46,7 @@ public class DabServerMenu extends AbstractContainerMenu {
 
     @Nullable
     private final DabServerBlockEntity blockEntity;
+    private final Player owner;
     private final DataSlot modeSlot;
     private final DataSlot selectedEnsembleSlot;
     private final DataSlot selectedStationSlot;
@@ -90,6 +92,7 @@ public class DabServerMenu extends AbstractContainerMenu {
     public DabServerMenu(int containerId, Inventory inventory, @Nullable DabServerBlockEntity blockEntity) {
         super(Radio.DAB_SERVER_MENU.get(), containerId);
         this.blockEntity = blockEntity;
+        this.owner = inventory.player;
         modeSlot = addDataSlot(DataSlot.standalone());
         selectedEnsembleSlot = addDataSlot(DataSlot.standalone());
         selectedStationSlot = addDataSlot(DataSlot.standalone());
@@ -288,6 +291,7 @@ public class DabServerMenu extends AbstractContainerMenu {
             case "save_station" -> {
                 boolean saved = blockEntity.updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode,
                         dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty, lic);
+                if (saved) rememberStation(ensembleIndex, stationIndex);
                 statusMessage = saved ? "Saved station profile" : "MUX full or invalid bitrate/PTY";
                 syncData();
                 broadcastChanges();
@@ -316,6 +320,7 @@ public class DabServerMenu extends AbstractContainerMenu {
                 }
                 boolean saved = blockEntity.updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode,
                         dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty, lic);
+                if (saved) rememberStation(ensembleIndex, stationIndex);
                 stationSaveRevisionSlot.set(stationSaveRevisionSlot.get() + 1);
                 statusMessage = saved ? "Saved station profile" : "MUX full or invalid bitrate/PTY";
                 syncData();
@@ -328,9 +333,16 @@ public class DabServerMenu extends AbstractContainerMenu {
         }
         boolean saved = blockEntity.updateStation(ensembleIndex, stationIndex, sid, label, dlsUrlMode,
                 dlsText, dlsUrl, motUrl, streamUrl, bitrateKbps, pty, lic);
+        if (saved && (action.equals("set_stream_url") || action.equals("set_sid") || action.equals("set_label")))
+            rememberStation(ensembleIndex, stationIndex);
         statusMessage = saved ? "Updated " + action : "MUX full or invalid bitrate/PTY";
         syncData();
         broadcastChanges();
+    }
+
+    private void rememberStation(int ensembleIndex, int stationIndex) {
+        DabStationDefinition station = blockEntity.getStation(ensembleIndex, stationIndex);
+        StreamHistory.remember(owner, "DAB", station.streamUrl(), station.sid(), station.label());
     }
 
     @Override

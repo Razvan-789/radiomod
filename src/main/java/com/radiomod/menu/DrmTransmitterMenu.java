@@ -2,6 +2,9 @@ package com.radiomod.menu;
 
 import com.radiomod.Radio;
 import com.radiomod.blockentity.DrmTransmitterBlockEntity;
+import com.radiomod.server.TransmitterPresets;
+import com.radiomod.server.StreamHistory;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -12,7 +15,11 @@ import org.jetbrains.annotations.Nullable;
 public class DrmTransmitterMenu extends AbstractContainerMenu {
     public static final int FREQ_DOWN = 0, FREQ_UP = 1, POWER_DOWN = 2, POWER_UP = 3, MODE = 4, BANDWIDTH = 5;
     public static final int SET_FREQ = 100_000, SET_POWER = 200_000;
+    public static final int PRESET_SAVE_BASE = 300_000, PRESET_LOAD_BASE = 300_010;
     @Nullable private final DrmTransmitterBlockEntity tx;
+    private final Player owner;
+    private final DataSlot presetMask = addDataSlot(DataSlot.standalone());
+    private final TextSlots[] presetLabels = {new TextSlots(52), new TextSlots(52), new TextSlots(52)};
     private final DataSlot frequency = addDataSlot(DataSlot.standalone());
     private final DataSlot powerLow = addDataSlot(DataSlot.standalone());
     private final DataSlot powerHigh = addDataSlot(DataSlot.standalone());
@@ -27,9 +34,13 @@ public class DrmTransmitterMenu extends AbstractContainerMenu {
     public DrmTransmitterMenu(int id, Inventory inventory, @Nullable DrmTransmitterBlockEntity tx) {
         super(Radio.DRM_TRANSMITTER_MENU.get(), id);
         this.tx = tx;
+        this.owner = inventory.player;
         sync();
     }
     private void sync() {
+        presetMask.set(TransmitterPresets.occupiedMask(owner, "drm"));
+        for (int slot = 0; slot < presetLabels.length; slot++)
+            presetLabels[slot].set(TransmitterPresets.label(owner, "drm", slot));
         if (tx == null) return;
         frequency.set(tx.getFrequencyKhz());
         powerLow.set(tx.getPowerW() & 0xFFFF); powerHigh.set(tx.getPowerW() >>> 16);
@@ -41,6 +52,10 @@ public class DrmTransmitterMenu extends AbstractContainerMenu {
     }
     @Override public void broadcastChanges() { sync(); super.broadcastChanges(); }
     public int frequency() { return frequency.get(); }
+    public boolean hasPreset(int slot) { return slot >= 0 && slot < TransmitterPresets.SLOT_COUNT
+            && (presetMask.get() & (1 << slot)) != 0; }
+    public String presetLabel(int slot) { return slot >= 0 && slot < presetLabels.length
+            ? presetLabels[slot].get() : "Empty"; }
     public int power() { return (powerHigh.get() << 16) | (powerLow.get() & 0xFFFF); }
     public int mode() { return mode.get(); }
     public int bandwidth() { return bandwidth.get(); }
@@ -55,10 +70,26 @@ public class DrmTransmitterMenu extends AbstractContainerMenu {
     public int mp3Bitrate() { return mp3Bitrate.get(); }
     public double minimumSnr() { return new int[]{15, 12, 9, 6}[Math.max(0, Math.min(3, mode()))]
             + (bandwidth() == 20 ? 3 : bandwidth() == 5 ? -1 : 0); }
-    public void setText(String field, String value) { if (tx != null) { tx.setText(field, value); broadcastChanges(); } }
+    public void setText(String field, String value) {
+        if (tx == null) return;
+        tx.setText(field, value);
+        if (field.equals("stream") || field.equals("service") || field.equals("short"))
+            StreamHistory.remember(owner, "DRM", tx.getStreamUrl(), tx.getShortLabel(), tx.getServiceLabel());
+        broadcastChanges();
+    }
     public void setUploadedAudioSource(String source) { setText("stream", source); }
     @Override public boolean clickMenuButton(Player player, int id) {
         if (tx == null || !stillValid(player)) return false;
+        if (id >= PRESET_SAVE_BASE && id < PRESET_SAVE_BASE + TransmitterPresets.SLOT_COUNT) {
+            TransmitterPresets.save(player, "drm", id - PRESET_SAVE_BASE,
+                    tx.createPreset(player.level().registryAccess()));
+            broadcastChanges(); return true;
+        }
+        if (id >= PRESET_LOAD_BASE && id < PRESET_LOAD_BASE + TransmitterPresets.SLOT_COUNT) {
+            CompoundTag preset = TransmitterPresets.load(player, "drm", id - PRESET_LOAD_BASE);
+            if (preset != null) tx.applyPreset(preset, player.level().registryAccess());
+            broadcastChanges(); return true;
+        }
         if (id >= SET_POWER) tx.setPowerW(id - SET_POWER);
         else if (id >= SET_FREQ) tx.setFrequencyKhz(id - SET_FREQ);
         else switch (id) {

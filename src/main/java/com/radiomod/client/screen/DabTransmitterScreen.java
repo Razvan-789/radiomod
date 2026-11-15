@@ -293,7 +293,7 @@ public class DabTransmitterScreen extends AbstractContainerScreen<DabTransmitter
         if (minecraft != null) {
             applyEnsembleIdInput();
             applyTiiInput();
-            minecraft.setScreen(new TransmitterPresetScreen(this, "DAB", menu::hasPreset,
+            minecraft.setScreen(new TransmitterPresetScreen(this, "DAB", menu::hasPreset, menu::presetLabel,
                     this::sendButton, this::resetFieldsAfterPresetLoad, DabTransmitterMenu.BUTTON_PRESET_SAVE_BASE,
                     DabTransmitterMenu.BUTTON_PRESET_LOAD_BASE));
         }

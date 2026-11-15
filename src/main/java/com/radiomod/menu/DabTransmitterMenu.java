@@ -38,11 +38,14 @@ public class DabTransmitterMenu extends AbstractContainerMenu {
     private static final int BUTTON_SET_TII_BASE = 4_000_000;
     private static final int ENSEMBLE_NAME_MAX_LENGTH = 32;
     private static final int SERVER_LABEL_MAX_LENGTH = 40;
+    private static final int PRESET_LABEL_MAX = 52;
 
     @Nullable
     private final DabTransmitterBlockEntity blockEntity;
     private final Player owner;
     private final DataSlot presetMaskSlot;
+    private final DataSlot[] presetLabelLengths = new DataSlot[TransmitterPresets.SLOT_COUNT];
+    private final DataSlot[][] presetLabelChars = new DataSlot[TransmitterPresets.SLOT_COUNT][PRESET_LABEL_MAX];
     private final DataSlot frequencyKhzSlot;
     private final DataSlot powerWSlot;
     private final DataSlot antennaConnectedSlot;
@@ -70,6 +73,12 @@ public class DabTransmitterMenu extends AbstractContainerMenu {
         this.owner = inventory.player;
         presetMaskSlot = addDataSlot(DataSlot.standalone());
         presetMaskSlot.set(TransmitterPresets.occupiedMask(owner, "dab"));
+        for (int slot = 0; slot < TransmitterPresets.SLOT_COUNT; slot++) {
+            presetLabelLengths[slot] = addDataSlot(DataSlot.standalone());
+            for (int i = 0; i < PRESET_LABEL_MAX; i++)
+                presetLabelChars[slot][i] = addDataSlot(DataSlot.standalone());
+        }
+        syncPresetLabels();
 
         frequencyKhzSlot = addDataSlot(DataSlot.standalone());
         powerWSlot = addDataSlot(DataSlot.standalone());
@@ -204,6 +213,7 @@ public class DabTransmitterMenu extends AbstractContainerMenu {
     @Override
     public void broadcastChanges() {
         presetMaskSlot.set(TransmitterPresets.occupiedMask(owner, "dab"));
+        syncPresetLabels();
         if (blockEntity != null) {
             frequencyKhzSlot.set(SignalMath.clampFrequencyKhz(blockEntity.getFrequencyKhz()));
             powerWSlot.set(SignalMath.clampPowerW(blockEntity.getPowerW()));
@@ -261,6 +271,23 @@ public class DabTransmitterMenu extends AbstractContainerMenu {
     public boolean hasPreset(int slot) {
         return slot >= 0 && slot < TransmitterPresets.SLOT_COUNT
                 && (presetMaskSlot.get() & (1 << slot)) != 0;
+    }
+
+    public String presetLabel(int slot) {
+        if (slot < 0 || slot >= TransmitterPresets.SLOT_COUNT) return "Empty";
+        int length = Math.max(0, Math.min(PRESET_LABEL_MAX, presetLabelLengths[slot].get()));
+        StringBuilder text = new StringBuilder(length);
+        for (int i = 0; i < length; i++) text.append((char) presetLabelChars[slot][i].get());
+        return text.toString();
+    }
+
+    private void syncPresetLabels() {
+        for (int slot = 0; slot < TransmitterPresets.SLOT_COUNT; slot++) {
+            String label = TransmitterPresets.label(owner, "dab", slot);
+            int length = Math.min(PRESET_LABEL_MAX, label.length());
+            presetLabelLengths[slot].set(length);
+            for (int i = 0; i < length; i++) presetLabelChars[slot][i].set(label.charAt(i));
+        }
     }
 
     public String getChannelLabel() {

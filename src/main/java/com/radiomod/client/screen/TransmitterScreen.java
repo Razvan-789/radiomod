@@ -6,6 +6,7 @@ import com.radiomod.signal.DynamicRadioTextResolver;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -24,7 +25,7 @@ public class TransmitterScreen extends AbstractContainerScreen<TransmitterMenu> 
     public TransmitterScreen(TransmitterMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         imageWidth = 380;
-        imageHeight = 232;
+        imageHeight = 258;
     }
 
     @Override
@@ -68,9 +69,9 @@ public class TransmitterScreen extends AbstractContainerScreen<TransmitterMenu> 
                 .bounds(applyX, top + 126, 52, 20).build());
 
         addRenderableWidget(Button.builder(Component.translatable("screen.radio.rds.config"), button -> openRdsConfig())
-                .bounds(left + 16, top + 204, 136, 20).build());
+                .bounds(left + 16, top + 230, 136, 20).build());
         directionalButton = addRenderableWidget(Button.builder(directionalityLabel(), button -> sendButton(TransmitterMenu.BUTTON_DIRECTIONAL_TOGGLE))
-                .bounds(left + 160, top + 204, imageWidth - 176, 20).build());
+                .bounds(left + 160, top + 230, imageWidth - 176, 20).build());
 
         streamUrlInput = new EditBox(font, left + 16, top + 176, imageWidth - 92, 16, Component.translatable("screen.radio.stream_url"));
         streamUrlInput.setHint(Component.translatable("screen.radio.stream_url_hint"));
@@ -84,6 +85,18 @@ public class TransmitterScreen extends AbstractContainerScreen<TransmitterMenu> 
                     minecraft.setScreen(new AudioLibraryScreen(this, menu.containerId, false));
                 })
                 .bounds(left + imageWidth - 106, top + 155, 90, 17).build());
+        addRenderableWidget(Button.builder(Component.literal("HISTORY"), button -> {
+                    saveStreamIfEdited();
+                    minecraft.setScreen(new StreamHistoryScreen(this, menu.containerId, url -> {
+                        streamUrlInput.setValue(url);
+                        applyStreamUrlInput();
+                    }));
+                }).bounds(left + 16, top + 204, 90, 20).build());
+        Button syncStream = addRenderableWidget(Button.builder(Component.literal("SYNC STREAM"), button -> {
+                    saveStreamIfEdited();
+                    PacketDistributor.sendToServer(new SetFmRdsConfigPayload(menu.containerId, "sync_stream_network", ""));
+                }).bounds(left + 110, top + 204, imageWidth - 126, 20).build());
+        syncStream.setTooltip(Tooltip.create(Component.literal("Syncs the stream to other transmitters with this PI")));
         lastFrequencyText = frequencyInput.getValue();
         lastPowerText = powerInput.getValue();
         lastStreamUrl = streamUrlInput.getValue();
@@ -147,7 +160,7 @@ public class TransmitterScreen extends AbstractContainerScreen<TransmitterMenu> 
     private void openPresets() {
         if (minecraft != null) {
             saveStreamIfEdited();
-            minecraft.setScreen(new TransmitterPresetScreen(this, "FM", menu::hasPreset,
+            minecraft.setScreen(new TransmitterPresetScreen(this, "FM", menu::hasPreset, menu::presetLabel,
                     this::sendButton, this::resetStreamAfterPresetLoad,
                     TransmitterMenu.BUTTON_PRESET_SAVE_BASE, TransmitterMenu.BUTTON_PRESET_LOAD_BASE));
         }
