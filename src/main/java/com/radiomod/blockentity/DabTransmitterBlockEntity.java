@@ -36,6 +36,7 @@ public class DabTransmitterBlockEntity extends BlockEntity {
     private static final String KEY_DIRECTIONAL_ENABLED = "DirectionalEnabled";
     private static final String KEY_DIRECTION_DEGREES = "DirectionDegrees";
     private static final String KEY_TII_CODE = "TiiCode";
+    private static final String KEY_SITE_NAME = "SiteName";
 
     private int frequencyKhz = 220_352;
     private int powerW = 50;
@@ -45,6 +46,7 @@ public class DabTransmitterBlockEntity extends BlockEntity {
     private DabVersion dabVersion = DabVersion.DAB_PLUS;
     private int ensembleId = 1001;
     private String ensembleName = "BLANK MUX A";
+    private String siteName = "";
     @Nullable
     private BlockPos linkedServerPos;
 
@@ -67,6 +69,11 @@ public class DabTransmitterBlockEntity extends BlockEntity {
 
     public String getTiiCode() {
         return tiiCode;
+    }
+    public String getSiteName() { return siteName; }
+    public void setSiteName(String value) {
+        String cleaned = com.radiomod.signal.TransmitterSites.clean(value);
+        if (!siteName.equals(cleaned)) { siteName = cleaned; setChanged(); }
     }
 
     public void setTiiCode(String code) {
@@ -94,6 +101,7 @@ public class DabTransmitterBlockEntity extends BlockEntity {
         preset.remove(KEY_FREQUENCY_KHZ);
         preset.remove(KEY_POWER_W);
         preset.remove(KEY_ANTENNA_POS);
+        preset.remove(KEY_SITE_NAME);
         return preset;
     }
 
@@ -104,7 +112,7 @@ public class DabTransmitterBlockEntity extends BlockEntity {
         settings.remove(KEY_LINKED_MUX_ID);
         for (String key : preset.getAllKeys()) {
             if (!key.equals(KEY_FREQUENCY_KHZ) && !key.equals(KEY_POWER_W)
-                    && !key.equals(KEY_ANTENNA_POS) && !key.equals("id")
+                    && !key.equals(KEY_ANTENNA_POS) && !key.equals(KEY_SITE_NAME) && !key.equals("id")
                     && !key.equals("x") && !key.equals("y") && !key.equals("z")) {
                 settings.put(key, preset.get(key).copy());
             }
@@ -357,6 +365,7 @@ public class DabTransmitterBlockEntity extends BlockEntity {
         super.onLoad();
         if (level != null) {
             SignalNetwork.registerTransmitter(level, getBlockPos());
+            com.radiomod.signal.TransmitterSites.reconcile(level, getBlockPos());
             TransmitterChunkLoading.forceChunkForTransmitter(level, getBlockPos());
         }
     }
@@ -389,6 +398,7 @@ public class DabTransmitterBlockEntity extends BlockEntity {
         tag.putBoolean(KEY_DIRECTIONAL_ENABLED, directionalEnabled);
         tag.putInt(KEY_DIRECTION_DEGREES, directionDegrees);
         tag.putString(KEY_TII_CODE, tiiCode);
+        tag.putString(KEY_SITE_NAME, siteName);
         if (antennaPos != null) {
             tag.putLong(KEY_ANTENNA_POS, antennaPos.asLong());
         }
@@ -405,6 +415,7 @@ public class DabTransmitterBlockEntity extends BlockEntity {
         dabVersion = DabVersion.values()[dabIndex];
         ensembleId = Math.max(0, Math.min(65_535, tag.getInt(KEY_ENSEMBLE_ID)));
         ensembleName = sanitizeEnsembleName(tag.getString(KEY_ENSEMBLE_NAME));
+        siteName = com.radiomod.signal.TransmitterSites.clean(tag.getString(KEY_SITE_NAME));
         linkedServerPos = tag.contains(KEY_LINKED_SERVER_POS) ? BlockPos.of(tag.getLong(KEY_LINKED_SERVER_POS)) : null;
         serverUnlinked = tag.getBoolean(KEY_SERVER_UNLINKED);
         linkedEnsembleIndex = Math.max(0, tag.getInt(KEY_LINKED_ENSEMBLE_INDEX));

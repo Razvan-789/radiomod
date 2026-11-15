@@ -41,6 +41,10 @@ public class TransmitterScreen extends AbstractContainerScreen<TransmitterMenu> 
                 .bounds(left + imageWidth - 29, top + 8, 18, 18).build());
         addRenderableWidget(Button.builder(Component.literal("PRESETS"), button -> openPresets())
                 .bounds(left + imageWidth - 131, top + 7, 96, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("SITE NAME"), button -> {
+                    saveStreamIfEdited();
+                    minecraft.setScreen(new SiteNameScreen(this, menu.containerId));
+                }).bounds(left + imageWidth - 232, top + 7, 96, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("-10 kHz"), button -> sendButton(TransmitterMenu.BUTTON_FREQUENCY_DOWN))
                 .bounds(left + 16, top + 78, 64, 20).build());
@@ -125,7 +129,7 @@ public class TransmitterScreen extends AbstractContainerScreen<TransmitterMenu> 
 
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        guiGraphics.drawString(font, "FM TRANSMITTER", 13, 13, TransmitterUi.TEXT, false);
+        guiGraphics.drawString(font, imageWidth < 350 ? "FM TX" : "FM TRANSMITTER", 13, 13, TransmitterUi.TEXT, false);
         TransmitterUi.status(guiGraphics, font,
                 menu.hasAntennaConnected() ? "Antenna connected" : "Antenna missing", 16, 38,
                 menu.hasAntennaConnected());

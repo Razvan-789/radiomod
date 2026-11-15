@@ -12,6 +12,7 @@ import com.radiomod.signal.RegistryCountries;
 import com.radiomod.signal.PtyNames;
 import com.radiomod.signal.SignalMath;
 import com.radiomod.signal.SignalNetwork;
+import com.radiomod.signal.TransmitterSites;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -131,7 +132,7 @@ public final class SquaremapIntegration {
             Layers layers = ensureLayers(world, dimension);
             layers.clear(world);
             List<Tx> transmitters = scan(level, countries, assets);
-            List<Site> sites = merge(dimension, transmitters);
+            List<Site> sites = merge(level, dimension, transmitters);
             JsonObject jsonWorld = new JsonObject();
             jsonWorld.addProperty("dimension", dimension);
             JsonArray jsonSites = new JsonArray();
@@ -140,7 +141,7 @@ public final class SquaremapIntegration {
                 Marker icon = Marker.icon(Point.of(site.center.getX() + .5, site.center.getZ() + .5),
                         iconKey(site, false), ICON_SIZES[iconTier(site.power)])
                         .markerOptions(MarkerOptions.builder().hoverTooltip(
-                                site.programmes.size() + " radio service(s)").build());
+                                escapeHtml(site.name) + " · " + site.programmes.size() + " radio service(s)").build());
                 layers.sites.addMarker(Key.of("radio_site_" + site.id), icon);
                 jsonSites.add(siteJson(site));
             }
@@ -216,7 +217,7 @@ public final class SquaremapIntegration {
     }
 
     /** Connected components of transmitters no more than 50 blocks apart. */
-    private static List<Site> merge(String dimension, List<Tx> transmitters) {
+    private static List<Site> merge(ServerLevel level, String dimension, List<Tx> transmitters) {
         int n = transmitters.size();
         int[] parent = new int[n];
         for (int i = 0; i < n; i++) parent[i] = i;
@@ -235,7 +236,8 @@ public final class SquaremapIntegration {
             programmes.sort(Comparator.comparingInt(Programme::frequencyKhz).thenComparing(Programme::name));
             String id = Integer.toHexString(dimension.hashCode()) + "_"
                     + Long.toUnsignedString(group.stream().mapToLong(tx -> tx.pos().asLong()).min().orElse(0), 16);
-            sites.add(new Site(id, strongest.pos(), strongest.power(), programmes));
+            sites.add(new Site(id, strongest.pos(), strongest.power(),
+                    TransmitterSites.displayName(level, strongest.pos()), programmes));
         }
         sites.sort(Comparator.comparing(Site::id));
         return sites;
@@ -465,11 +467,16 @@ public final class SquaremapIntegration {
     private static String formatFrequency(int khz) {
         return String.format(java.util.Locale.ROOT, "%.3f", khz / 1000.0);
     }
+    private static String escapeHtml(String value) {
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
+    }
     private static JsonObject siteJson(Site site) {
         JsonObject json = new JsonObject();
         json.addProperty("id", site.id); json.addProperty("x", site.center.getX());
         json.addProperty("y", site.center.getY()); json.addProperty("z", site.center.getZ());
         json.addProperty("power", site.power); json.addProperty("icon", iconKey(site, false).getKey());
+        json.addProperty("name", site.name);
         json.addProperty("selectedIcon", iconKey(site, true).getKey());
         JsonArray programmes = new JsonArray();
         for (Programme p : site.programmes) {
@@ -516,7 +523,7 @@ public final class SquaremapIntegration {
     }
     private record Tx(BlockPos pos, String kind, int frequencyKhz, int power, boolean antenna,
                       boolean directional, int azimuth, List<Programme> programmes, BlockEntity entity) { }
-    private record Site(String id, BlockPos center, int power, List<Programme> programmes) { }
+    private record Site(String id, BlockPos center, int power, String name, List<Programme> programmes) { }
     private record CachedCoverage(String fingerprint, List<List<Point>> contours) { }
     private static final class Layers {
         final SimpleLayerProvider sites = SimpleLayerProvider.builder("Radio transmitters").layerPriority(20).zIndex(50).build();

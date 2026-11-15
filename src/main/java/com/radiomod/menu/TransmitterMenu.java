@@ -22,7 +22,7 @@ import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
-public class TransmitterMenu extends AbstractContainerMenu {
+public class TransmitterMenu extends AbstractContainerMenu implements SiteNamedTransmitterMenu {
     public static final int BUTTON_FREQUENCY_DOWN = 0;
     public static final int BUTTON_FREQUENCY_UP = 1;
     public static final int BUTTON_POWER_DOWN = 2;
@@ -39,6 +39,7 @@ public class TransmitterMenu extends AbstractContainerMenu {
     @Nullable
     private final TransmitterBlockEntity blockEntity;
     private final Player owner;
+    @Override public BlockPos transmitterPos() { return blockEntity == null ? null : blockEntity.getBlockPos(); }
     private final DataSlot presetMaskSlot;
     private final DataSlot frequencyKhzSlot;
     private final DataSlot powerWSlot;

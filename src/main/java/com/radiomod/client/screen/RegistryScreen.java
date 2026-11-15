@@ -276,7 +276,7 @@ public class RegistryScreen extends AbstractContainerScreen<RegistryMenu> {
             g.drawString(font, font.plainSubstrByWidth(e.country(), imageWidth - countryStart - 16),
                     countryStart, top, 0xFFE4D393, false);
             if (rowHeight >= 20) {
-                String sub = e.powerW() + " W  · " + e.x() + ", " + e.y() + ", " + e.z()
+                String sub = e.siteName() + "  · " + e.powerW() + " W  · " + e.x() + ", " + e.y() + ", " + e.z()
                         + "  · " + e.dimension() + "  · " + e.detail()
                         + (e.code().isBlank() ? "" : "  · " + e.code());
                 g.drawString(font, font.plainSubstrByWidth(sub, imageWidth - 34), 16, top + 10,

@@ -127,7 +127,7 @@
       list.innerHTML = '';
     } else {
       const {world, site, rows} = selected;
-      count.textContent = `${world.dimension} · ${site.x}, ${site.y}, ${site.z} · ${rows.length} stations`;
+      count.textContent = `${site.name || 'Unnamed transmitter site'} · ${world.dimension} · ${site.x}, ${site.y}, ${site.z} · ${rows.length} stations`;
       list.innerHTML = rows.map((p, i) => `<div class="radio-map-station${isDab(p) ? ' radio-map-dab' : ''}" role="listitem">
         <button class="radio-map-filter" type="button" data-filter="frequency" data-row="${i}" title="Filter transmitters to ${MHz(p.frequency)} MHz">${MHz(p.frequency)}</button>
         <span class="radio-map-programme">${p.logo ? `<img class="radio-map-logo" src="${escape(p.logo)}" alt="">` : ''}<span>${escape(p.name)} <small>${escape(p.type)}</small></span></span>

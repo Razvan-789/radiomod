@@ -20,6 +20,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
     }
     private int frequencyKhz = 1000, powerW = 50, mode, bandwidthKhz = 10;
     private String streamUrl = "", imageUrl = "", serviceLabel = "DRM Service", shortLabel = "DRM", textMessage = "", lic = "";
+    private String siteName = "";
     @Nullable private BlockPos antennaPos;
 
     public DrmTransmitterBlockEntity(BlockPos pos, BlockState state) {
@@ -28,13 +29,14 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
     public int getFrequencyKhz() { return frequencyKhz; }
     public CompoundTag createPreset(HolderLookup.Provider registries) {
         CompoundTag preset = saveWithoutMetadata(registries);
-        preset.remove("FrequencyKhz"); preset.remove("PowerW"); preset.remove("AntennaPos");
+        preset.remove("FrequencyKhz"); preset.remove("PowerW"); preset.remove("AntennaPos"); preset.remove("SiteName");
         return preset;
     }
     public void applyPreset(CompoundTag preset, HolderLookup.Provider registries) {
         CompoundTag settings = saveWithoutMetadata(registries);
         for (String key : preset.getAllKeys()) {
             if (!key.equals("FrequencyKhz") && !key.equals("PowerW") && !key.equals("AntennaPos")
+                    && !key.equals("SiteName")
                     && !key.equals("id") && !key.equals("x") && !key.equals("y") && !key.equals("z"))
                 settings.put(key, preset.get(key).copy());
         }
@@ -43,6 +45,11 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         setChanged();
     }
     public int getPowerW() { return powerW; }
+    public String getSiteName() { return siteName; }
+    public void setSiteName(String value) {
+        String cleaned = com.radiomod.signal.TransmitterSites.clean(value);
+        if (!siteName.equals(cleaned)) { siteName = cleaned; setChanged(); }
+    }
     public int getMode() { return mode; }
     public String getModeLabel() { return "ABCD".substring(mode, mode + 1); }
     public int getBandwidthKhz() { return bandwidthKhz; }
@@ -101,6 +108,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         super.onLoad();
         if (level != null && !level.isClientSide()) {
             SignalNetwork.registerTransmitter(level, worldPosition);
+            com.radiomod.signal.TransmitterSites.reconcile(level, worldPosition);
             TransmitterChunkLoading.forceChunkForTransmitter(level, worldPosition);
         }
     }
@@ -115,6 +123,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         tag.putString("StreamUrl", streamUrl); tag.putString("ImageUrl", imageUrl);
         tag.putString("ServiceLabel", serviceLabel); tag.putString("ShortLabel", shortLabel);
         tag.putString("TextMessage", textMessage);
+        tag.putString("SiteName", siteName);
         tag.putString("Lic", lic);
         if (antennaPos != null) tag.putLong("AntennaPos", antennaPos.asLong());
     }
@@ -130,6 +139,7 @@ public class DrmTransmitterBlockEntity extends BlockEntity {
         shortLabel = limit(tag.getString("ShortLabel"), 16);
         textMessage = limit(tag.getString("TextMessage"), 256);
         lic = limit(tag.getString("Lic"), 16);
+        siteName = com.radiomod.signal.TransmitterSites.clean(tag.getString("SiteName"));
         antennaPos = tag.contains("AntennaPos") ? BlockPos.of(tag.getLong("AntennaPos")) : null;
     }
 }

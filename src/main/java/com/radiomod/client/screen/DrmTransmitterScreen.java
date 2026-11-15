@@ -32,6 +32,10 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         addRenderableWidget(Button.builder(Component.literal("X"), b -> onClose()).bounds(x + w - 30, y + 8, 18, 18).build());
         addRenderableWidget(Button.builder(Component.literal("PRESETS"), b -> openPresets())
                 .bounds(x + w - 126, y + 7, 90, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("SITE NAME"), b -> {
+            commit();
+            minecraft.setScreen(new SiteNameScreen(this, menu.containerId));
+        }).bounds(x + w - 222, y + 7, 90, 20).build());
         rfTab = addRenderableWidget(Button.builder(Component.literal("RF / PROPAGATION"), b -> { commit(); servicePage = false; page(); })
                 .bounds(x + 12, y + 42, (w - 28) / 2, 20).build());
         serviceTab = addRenderableWidget(Button.builder(Component.literal("SERVICE / AUDIO"), b -> { commit(); servicePage = true; page(); })
@@ -178,7 +182,7 @@ public class DrmTransmitterScreen extends AbstractContainerScreen<DrmTransmitter
         TransmitterUi.card(g, leftPos + 12, topPos + 72, imageWidth - 24, 221);
     }
     @Override protected void renderLabels(GuiGraphics g, int mx, int my) {
-        g.drawString(font, "DRM TRANSMITTER", 14, 12, TransmitterUi.TEXT, false);
+        g.drawString(font, imageWidth < 365 ? "DRM TX" : "DRM TRANSMITTER", 14, 12, TransmitterUi.TEXT, false);
         TransmitterUi.status(g, font, menu.hasAntenna() ? "TX antenna linked" : "Link a TX antenna", 16, 292, menu.hasAntenna());
         if (servicePage) {
             String[] labels = {"SERVICE", "SHORT", "MESSAGE", "STREAM", "IMAGE", "LIC"};

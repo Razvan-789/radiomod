@@ -10,6 +10,7 @@ import com.radiomod.network.RegistryFilterPayload;
 import com.radiomod.network.SyncRegistryPayload;
 import com.radiomod.signal.RegistryCountries;
 import com.radiomod.signal.SignalNetwork;
+import com.radiomod.signal.TransmitterSites;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -91,20 +92,20 @@ public class RegistryMenu extends AbstractContainerMenu {
                     String code = fm.getRdsPi();
                     String ps = !fm.isRdsEnabled() ? "" : fm.getRdsLongPs().isBlank() ? fm.getRdsPs() : fm.getRdsLongPs();
                     if (ps.length() > 8 && fm.getRdsLongPs().isBlank()) ps = ps.substring(0, 8);
-                    add(all, "FM", "", fm.getFrequencyKhz(), dimension, pos, fm.getPowerW(),
+                    add(all, "FM", "", fm.getFrequencyKhz(), level, dimension, pos, fm.getPowerW(),
                             ps.isBlank() ? "Unnamed FM" : ps.strip(), source(fm.getStreamUrl()), code, countries);
                 } else if (level.getBlockEntity(pos) instanceof DabTransmitterBlockEntity dab) {
                     DabServerBlockEntity.DabEnsembleDefinition mux = dab.resolveBroadcastMux();
                     if (mux == null || mux.stations().isEmpty()) {
-                        add(all, dab.getDabVersion().getLabel(), "", dab.getFrequencyKhz(), dimension, pos, dab.getPowerW(),
+                        add(all, dab.getDabVersion().getLabel(), "", dab.getFrequencyKhz(), level, dimension, pos, dab.getPowerW(),
                                 dab.getEnsembleName().isBlank() ? "No multiplex" : dab.getEnsembleName(),
                                 "No active services", "", countries);
                     } else for (DabServerBlockEntity.DabStationDefinition station : mux.stations()) {
-                        add(all, dab.getDabVersion().getLabel(), "", dab.getFrequencyKhz(), dimension, pos, dab.getPowerW(),
+                        add(all, dab.getDabVersion().getLabel(), "", dab.getFrequencyKhz(), level, dimension, pos, dab.getPowerW(),
                                 station.label(), mux.name() + " · " + source(station.streamUrl()), station.sid(), countries);
                     }
                 } else if (level.getBlockEntity(pos) instanceof DrmTransmitterBlockEntity drm) {
-                    add(all, "DRM", drm.getModeLabel(), drm.getFrequencyKhz(), dimension, pos, drm.getPowerW(),
+                    add(all, "DRM", drm.getModeLabel(), drm.getFrequencyKhz(), level, dimension, pos, drm.getPowerW(),
                             drm.getServiceLabel(), drm.getModeLabel() + " · " + source(drm.getStreamUrl()),
                             "", countries);
                 }
@@ -137,7 +138,8 @@ public class RegistryMenu extends AbstractContainerMenu {
         if (minPowerW >= 0 && entry.powerW() < minPowerW) return false;
         if (maxPowerW >= 0 && entry.powerW() > maxPowerW) return false;
         if (!query.isBlank() && !entry.programme().toLowerCase(Locale.ROOT).contains(query)
-                && !entry.code().toLowerCase(Locale.ROOT).contains(query)) return false;
+                && !entry.code().toLowerCase(Locale.ROOT).contains(query)
+                && !entry.siteName().toLowerCase(Locale.ROOT).contains(query)) return false;
         return switch (filterMode) {
             case 1 -> entry.type().equals("FM");
             case 2 -> entry.type().equals("DAB");
@@ -149,10 +151,12 @@ public class RegistryMenu extends AbstractContainerMenu {
         };
     }
 
-    private static void add(List<SyncRegistryPayload.Entry> list, String type, String mode, int frequency, String dimension,
+    private static void add(List<SyncRegistryPayload.Entry> list, String type, String mode, int frequency,
+                            ServerLevel level, String dimension,
                             BlockPos pos, int power, String programme, String detail, String code,
                             RegistryCountries countries) {
-        list.add(new SyncRegistryPayload.Entry(type, mode, frequency, dimension, pos.getX(), pos.getY(), pos.getZ(),
+        list.add(new SyncRegistryPayload.Entry(type, mode, frequency, dimension,
+                TransmitterSites.displayName(level, pos), pos.getX(), pos.getY(), pos.getZ(),
                 power, limit(programme, 48), limit(detail, 80), limit(code, 16), countries.countryFor(code)));
     }
 

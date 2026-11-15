@@ -51,7 +51,6 @@ import com.radiomod.item.NavigatorItem;
 import com.radiomod.item.RadioItem;
 import com.radiomod.item.SignalMeterItem;
 import com.radiomod.item.SpectrumAnalyserItem;
-import com.radiomod.item.MeteorForecasterItem;
 import com.radiomod.item.PortableDrmRadioItem;
 import com.radiomod.menu.PortableDrmMenu;
 import com.radiomod.network.SyncPortableDrmPayload;
@@ -71,6 +70,8 @@ import com.radiomod.menu.TransmitterMenu;
 import com.radiomod.network.SetDabEnsembleNamePayload;
 import com.radiomod.network.SetDabServerConfigPayload;
 import com.radiomod.network.SetDrmTextPayload;
+import com.radiomod.network.SiteNameActionPayload;
+import com.radiomod.network.SyncSiteNamePayload;
 import com.radiomod.network.SetFmRdsConfigPayload;
 import com.radiomod.network.UploadAudioChunkPayload;
 import com.radiomod.network.AudioLibraryActionPayload;
@@ -89,6 +90,7 @@ import com.radiomod.menu.VorTransmitterMenu;
 import com.radiomod.network.SetAdsbTransponderPayload;
 import com.radiomod.network.SyncAdsbRadarPayload;
 import com.radiomod.network.SyncAdsbTabletPayload;
+import com.radiomod.network.SyncPropagationPayload;
 import com.radiomod.network.SyncNavigatorPayload;
 import com.radiomod.network.NavigatorActionPayload;
 import com.radiomod.network.SyncVorPayload;
@@ -302,7 +304,6 @@ public class Radio {
             () -> new AdsbTransponderItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> NAVIGATOR_ITEM = ITEMS.register("navigator",
             () -> new NavigatorItem(new Item.Properties().stacksTo(1)));
-    public static final DeferredItem<Item> METEOR_FORECASTER_ITEM = ITEMS.register("meteor_forecaster", () -> new MeteorForecasterItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> LINKING_TOOL_ITEM = ITEMS.register("linking_tool", () -> new LinkingToolItem(new Item.Properties().stacksTo(1)));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TransmitterBlockEntity>> TRANSMITTER_BLOCK_ENTITY =
@@ -440,7 +441,6 @@ public class Radio {
                 output.accept(WEB_TABLET_ITEM.get());
                 output.accept(ADSB_TRANSPONDER_ITEM.get());
                 output.accept(NAVIGATOR_ITEM.get());
-                output.accept(METEOR_FORECASTER_ITEM.get());
                 output.accept(LINKING_TOOL_ITEM.get());
                 output.accept(TRANSMITTER_BLOCK_ITEM.get());
                 output.accept(DAB_TRANSMITTER_BLOCK_ITEM.get());
@@ -544,6 +544,11 @@ public class Radio {
                     if (context.player().containerMenu instanceof WebTabletMenu menu
                             && menu.containerId == payload.containerId()) menu.setAdsbSnapshot(payload);
                 }));
+        registrar.playToClient(SyncPropagationPayload.TYPE, SyncPropagationPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player().containerMenu instanceof WebTabletMenu menu
+                            && menu.containerId == payload.containerId()) menu.setPropagationSnapshot(payload);
+                }));
         registrar.playToServer(WebTabletActionPayload.TYPE, WebTabletActionPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player
@@ -629,6 +634,21 @@ public class Radio {
                         menu.setText(payload.field(), payload.value());
                     }
                 }));
+        registrar.playToServer(SiteNameActionPayload.TYPE, SiteNameActionPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player
+                            && player.containerMenu instanceof com.radiomod.menu.SiteNamedTransmitterMenu named
+                            && player.containerMenu.containerId == payload.containerId()
+                            && player.containerMenu.stillValid(player) && named.transmitterPos() != null) {
+                        if (payload.save()) com.radiomod.signal.TransmitterSites.setName(
+                                player.serverLevel(), named.transmitterPos(), payload.name());
+                        PacketDistributor.sendToPlayer(player, new SyncSiteNamePayload(payload.containerId(),
+                                com.radiomod.signal.TransmitterSites.name(player.serverLevel(), named.transmitterPos())));
+                    }
+                }));
+        registrar.playToClient(SyncSiteNamePayload.TYPE, SyncSiteNamePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        com.radiomod.client.screen.SiteNameScreen.receive(payload)));
         registrar.playToServer(
                 UploadAudioChunkPayload.TYPE,
                 UploadAudioChunkPayload.STREAM_CODEC,
@@ -868,25 +888,55 @@ public class Radio {
 
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(Commands.literal("meteorscatter").executes(context -> {
-            String status = MeteorScatter.status(context.getSource().getLevel());
-            context.getSource().sendSuccess(() -> Component.literal(status), false);
+        var root = Commands.literal("radiomod").requires(source -> source.hasPermission(2));
+        root.then(Commands.literal("meteorscatter").executes(context -> {
+            context.getSource().sendSuccess(() -> Component.literal(MeteorScatter.status(context.getSource().getLevel())), false);
             return 1;
-        }).then(Commands.literal("rate")
-                .requires(source -> source.hasPermission(2))
-                .then(Commands.argument("meteors_per_hour", IntegerArgumentType.integer(0, 1200))
-                        .executes(context -> {
-                            int rate = IntegerArgumentType.getInteger(context, "meteors_per_hour");
-                            if (rate != 0 && rate < MeteorScatter.MIN_RATE) {
-                                context.getSource().sendFailure(Component.literal("Use 0 for random or 20–1200 meteors per real hour."));
-                                return 0;
-                            }
-                            MeteorScatter.setRate(context.getSource().getLevel(), rate);
+        }).then(Commands.literal("rate").requires(source -> source.hasPermission(2))
+                .then(Commands.argument("value", IntegerArgumentType.integer(0, 1200)).executes(context -> {
+                    int value = IntegerArgumentType.getInteger(context, "value");
+                    MeteorScatter.setRate(context.getSource().getLevel(), value);
+                    context.getSource().sendSuccess(() -> Component.literal("Meteor scatter: "
+                            + (value == 0 ? "random" : value + " meteors/hour")), true);
+                    return 1;
+                }))));
+        for (var kind : com.radiomod.signal.PropagationEffects.Kind.values()) {
+            String name = kind == com.radiomod.signal.PropagationEffects.Kind.AURORA ? "aurora"
+                    : kind == com.radiomod.signal.PropagationEffects.Kind.SPORADIC ? "sporadic" : "tropo";
+            int min = kind == com.radiomod.signal.PropagationEffects.Kind.SPORADIC ? 60 : 1;
+            int max = kind == com.radiomod.signal.PropagationEffects.Kind.SPORADIC ? 108
+                    : kind == com.radiomod.signal.PropagationEffects.Kind.TROPO ? 11 : 10;
+            var command = Commands.literal(name).executes(context -> {
+                context.getSource().sendSuccess(() -> Component.literal(
+                        com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind)), false);
+                return 1;
+            });
+            command.then(Commands.literal("rate").requires(source -> source.hasPermission(2))
+                    .then(Commands.argument("value", IntegerArgumentType.integer(0, max)).executes(context -> {
+                        int value = IntegerArgumentType.getInteger(context, "value");
+                        if (value != 0 && value < min) {
+                            context.getSource().sendFailure(Component.literal("Use 0 for random or " + min + "–" + max + "."));
+                            return 0;
+                        }
+                        com.radiomod.signal.PropagationEffects.configure(context.getSource().getLevel(), kind, value);
+                        context.getSource().sendSuccess(() -> Component.literal(
+                                com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind)), true);
+                        return 1;
+                    })));
+            if (kind == com.radiomod.signal.PropagationEffects.Kind.SPORADIC
+                    || kind == com.radiomod.signal.PropagationEffects.Kind.AURORA) {
+                command.then(Commands.literal("enable")
+                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 1)).executes(context -> {
+                            boolean enabled = IntegerArgumentType.getInteger(context, "value") == 1;
+                            com.radiomod.signal.PropagationEffects.setForced(context.getSource().getLevel(), kind, enabled);
                             context.getSource().sendSuccess(() -> Component.literal(
-                                    "Meteor rate set to " + (rate == 0 ? "random" : rate + " per real hour")
-                                            + " in this dimension."), true);
+                                    com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind)), true);
                             return 1;
-                        }))));
+                        })));
+            }
+            root.then(command);
+        }
+        event.getDispatcher().register(root);
     }
 
     @SubscribeEvent

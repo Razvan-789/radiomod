@@ -6,8 +6,11 @@ import com.radiomod.blockentity.AdsbServerBlockEntity;
 import com.radiomod.blockentity.AdsbReceiverBlockEntity;
 import com.radiomod.blockentity.VorTransmitterBlockEntity;
 import com.radiomod.network.SyncAdsbTabletPayload;
+import com.radiomod.network.SyncPropagationPayload;
 import com.radiomod.network.SyncAdsbRadarPayload;
 import com.radiomod.signal.AdsbReception;
+import com.radiomod.signal.MeteorScatter;
+import com.radiomod.signal.PropagationEffects;
 import com.radiomod.signal.AdsbServerNetwork;
 import com.radiomod.signal.VorNetwork;
 import com.radiomod.network.SyncWebTabletPayload;
@@ -42,6 +45,8 @@ public class WebTabletMenu extends AbstractContainerMenu {
     private SyncWebTabletPayload snapshot;
     private SyncAdsbTabletPayload adsbSnapshot;
     private boolean adsbMode;
+    private boolean propagationMode;
+    private SyncPropagationPayload propagationSnapshot;
     private String adsbDimension = "";
     private int adsbCenterX, adsbCenterZ;
     private int adsbRangeKm = 70;
@@ -64,12 +69,26 @@ public class WebTabletMenu extends AbstractContainerMenu {
         if (player.level().isClientSide()) adsbSnapshot = value;
     }
     public void clearAdsbSnapshot() { if (player.level().isClientSide()) adsbSnapshot = null; }
+    public SyncPropagationPayload propagationSnapshot() { return propagationSnapshot; }
+    public void setPropagationSnapshot(SyncPropagationPayload value) {
+        if (player.level().isClientSide()) propagationSnapshot = value;
+    }
 
     @Override public void broadcastChanges() {
         super.broadcastChanges();
-        if (player instanceof ServerPlayer serverPlayer && player.tickCount - lastSentTick >= (adsbMode ? 10 : 4)) {
-            if (adsbMode) sendAdsb(serverPlayer); else send(serverPlayer);
+        if (player instanceof ServerPlayer serverPlayer && player.tickCount - lastSentTick >= (propagationMode ? 20 : adsbMode ? 10 : 4)) {
+            if (propagationMode) sendPropagation(serverPlayer);
+            else if (adsbMode) sendAdsb(serverPlayer); else send(serverPlayer);
         }
+    }
+    private void sendPropagation(ServerPlayer receiver) {
+        lastSentTick = player.tickCount;
+        ServerLevel level = receiver.serverLevel();
+        propagationSnapshot = new SyncPropagationPayload(containerId, MeteorScatter.status(level),
+                PropagationEffects.status(level, PropagationEffects.Kind.SPORADIC),
+                PropagationEffects.status(level, PropagationEffects.Kind.TROPO),
+                PropagationEffects.status(level, PropagationEffects.Kind.AURORA));
+        PacketDistributor.sendToPlayer(receiver, propagationSnapshot);
     }
     private void send(ServerPlayer serverPlayer) {
         lastSentTick = player.tickCount;
@@ -186,7 +205,16 @@ public class WebTabletMenu extends AbstractContainerMenu {
     }
     public void action(ServerPlayer sender, WebTabletActionPayload request) {
         if (sender != player || request.containerId() != containerId || !stillValid(sender)) return;
+        if ("propagation_mode".equals(request.action()) && localPos == null) {
+            propagationMode = request.number() != 0;
+            if (propagationMode) {
+                adsbMode = false;
+                sendPropagation(sender);
+            } else send(sender);
+            return;
+        }
         if ("adsb_mode".equals(request.action()) && localPos == null) {
+            propagationMode = false;
             adsbMode = request.number() != 0;
             if (adsbMode) { selectedDimension = ""; selectedPos = 0; }
             if (adsbMode && adsbDimension.isBlank()) {

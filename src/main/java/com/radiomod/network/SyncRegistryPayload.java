@@ -11,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public record SyncRegistryPayload(int containerId, int page, int pageCount, int total, int sort, boolean descending,
                                   List<Entry> entries, List<String> countries) implements CustomPacketPayload {
-    public record Entry(String type, String mode, int frequencyKhz, String dimension, int x, int y, int z,
+    public record Entry(String type, String mode, int frequencyKhz, String dimension, String siteName, int x, int y, int z,
                         int powerW, String programme, String detail, String code, String country) { }
     public static final Type<SyncRegistryPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Radio.MODID, "sync_registry"));
@@ -24,7 +24,8 @@ public record SyncRegistryPayload(int containerId, int page, int pageCount, int 
         b.writeByte(p.entries.size());
         for (Entry e : p.entries) {
             string(b, e.type, 8); string(b, e.mode, 8); b.writeInt(e.frequencyKhz);
-            string(b, e.dimension, 128); b.writeInt(e.x); b.writeInt(e.y); b.writeInt(e.z);
+            string(b, e.dimension, 128); string(b, e.siteName, 64);
+            b.writeInt(e.x); b.writeInt(e.y); b.writeInt(e.z);
             b.writeInt(e.powerW); string(b, e.programme, 256); string(b, e.detail, 320);
             string(b, e.code, 16); string(b, e.country, 160);
         }
@@ -38,7 +39,8 @@ public record SyncRegistryPayload(int containerId, int page, int pageCount, int 
         if (count > 8) throw new IllegalArgumentException("Too many registry entries");
         List<Entry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) entries.add(new Entry(
-                readString(b, 8), readString(b, 8), b.readInt(), readString(b, 128), b.readInt(), b.readInt(), b.readInt(),
+                readString(b, 8), readString(b, 8), b.readInt(), readString(b, 128), readString(b, 64),
+                b.readInt(), b.readInt(), b.readInt(),
                 b.readInt(), readString(b, 256), readString(b, 320), readString(b, 16), readString(b, 160)));
         List<String> countries = new ArrayList<>(16);
         for (int i = 0; i < 16; i++) countries.add(readString(b, 160));

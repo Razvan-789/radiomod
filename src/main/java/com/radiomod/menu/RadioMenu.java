@@ -483,6 +483,8 @@ public class RadioMenu extends AbstractContainerMenu {
                         overheadBlockCount,
                         player.isUnderWater()
                 ) + transmitter.antennaGainToward(radioPosition);
+                candidateSignalDbuv = MeteorScatter.signal(level, transmitter, radioPosition,
+                        candidateFrequencyKhz, candidateSignalDbuv, player.isUnderWater());
                 if (candidateSignalDbuv > -5.0) {
                     occupiedFrequenciesKhz.add(candidateFrequencyKhz);
                 }

@@ -59,6 +59,9 @@ public class DabTransmitterScreen extends AbstractContainerScreen<DabTransmitter
                 .bounds(left + imageWidth - 29, top + 8, 18, 18).build());
         addRenderableWidget(Button.builder(Component.literal("PRESETS"), button -> openPresets())
                 .bounds(left + imageWidth - 225, top + 34, 88, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("SITE NAME"), button ->
+                minecraft.setScreen(new SiteNameScreen(this, menu.containerId)))
+                .bounds(left + imageWidth - 225, top + 7, 88, 20).build());
         directionalButton = addRenderableWidget(Button.builder(directionalityLabel(),
                 button -> sendButton(DabTransmitterMenu.BUTTON_DIRECTIONAL_TOGGLE))
                 .bounds(left + imageWidth - 132, top + 34, 116, 20).build());
@@ -196,7 +199,7 @@ public class DabTransmitterScreen extends AbstractContainerScreen<DabTransmitter
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(font, "DAB TRANSMITTER", 13, 13, TransmitterUi.TEXT, false);
+        graphics.drawString(font, imageWidth < 350 ? "DAB TX" : "DAB TRANSMITTER", 13, 13, TransmitterUi.TEXT, false);
         TransmitterUi.status(graphics, font,
                 menu.hasAntennaConnected() ? "Antenna connected" : "Antenna missing", 16, 40,
                 menu.hasAntennaConnected());

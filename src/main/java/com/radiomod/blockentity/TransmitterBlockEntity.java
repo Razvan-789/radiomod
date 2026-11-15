@@ -44,6 +44,7 @@ public class TransmitterBlockEntity extends BlockEntity {
     private static final String KEY_RDS_PTYN = "RdsPtyn";
     private static final String KEY_RDS_LONG_PS = "RdsLongPs";
     private static final String KEY_STREAM_URL = "StreamUrl";
+    private static final String KEY_SITE_NAME = "SiteName";
     private static final String KEY_DIRECTIONAL_ENABLED = "DirectionalEnabled";
     private static final String KEY_DIRECTION_DEGREES = "DirectionDegrees";
 
@@ -67,6 +68,7 @@ public class TransmitterBlockEntity extends BlockEntity {
     private String rdsPtyn = "";
     private String rdsLongPs = "";
     private String streamUrl = "";
+    private String siteName = "";
     private boolean directionalEnabled;
     private int directionDegrees;
     @Nullable
@@ -279,11 +281,18 @@ public class TransmitterBlockEntity extends BlockEntity {
         return streamUrl;
     }
 
+    public String getSiteName() { return siteName; }
+    public void setSiteName(String value) {
+        String cleaned = com.radiomod.signal.TransmitterSites.clean(value);
+        if (!siteName.equals(cleaned)) { siteName = cleaned; setChangedAndSync(); }
+    }
+
     public CompoundTag createPreset(HolderLookup.Provider registries) {
         CompoundTag preset = saveWithoutMetadata(registries);
         preset.remove(KEY_FREQUENCY_KHZ);
         preset.remove(KEY_POWER_W);
         preset.remove(KEY_ANTENNA_POS);
+        preset.remove(KEY_SITE_NAME);
         return preset;
     }
 
@@ -291,7 +300,7 @@ public class TransmitterBlockEntity extends BlockEntity {
         CompoundTag settings = saveWithoutMetadata(registries);
         for (String key : preset.getAllKeys()) {
             if (!key.equals(KEY_FREQUENCY_KHZ) && !key.equals(KEY_POWER_W)
-                    && !key.equals(KEY_ANTENNA_POS) && !key.equals("id")
+                    && !key.equals(KEY_ANTENNA_POS) && !key.equals(KEY_SITE_NAME) && !key.equals("id")
                     && !key.equals("x") && !key.equals("y") && !key.equals("z")) {
                 settings.put(key, preset.get(key).copy());
             }
@@ -393,6 +402,7 @@ public class TransmitterBlockEntity extends BlockEntity {
         super.onLoad();
         if (level != null) {
             SignalNetwork.registerTransmitter(level, getBlockPos());
+            com.radiomod.signal.TransmitterSites.reconcile(level, getBlockPos());
             TransmitterChunkLoading.forceChunkForTransmitter(level, getBlockPos());
         }
     }
@@ -442,6 +452,7 @@ public class TransmitterBlockEntity extends BlockEntity {
         tag.putString(KEY_RDS_PTYN, rdsPtyn);
         tag.putString(KEY_RDS_LONG_PS, rdsLongPs);
         tag.putString(KEY_STREAM_URL, streamUrl);
+        tag.putString(KEY_SITE_NAME, siteName);
         tag.putBoolean(KEY_DIRECTIONAL_ENABLED, directionalEnabled);
         tag.putInt(KEY_DIRECTION_DEGREES, directionDegrees);
         if (antennaPos != null) {
@@ -479,6 +490,7 @@ public class TransmitterBlockEntity extends BlockEntity {
         rdsPtyn = sanitizeAscii(tag.getString(KEY_RDS_PTYN), 8);
         rdsLongPs = sanitizeText(tag.getString(KEY_RDS_LONG_PS), 32);
         streamUrl = sanitizeText(tag.getString(KEY_STREAM_URL), STREAM_URL_MAX_CHARS);
+        siteName = com.radiomod.signal.TransmitterSites.clean(tag.getString(KEY_SITE_NAME));
         directionalEnabled = tag.getBoolean(KEY_DIRECTIONAL_ENABLED);
         directionDegrees = Math.floorMod(tag.getInt(KEY_DIRECTION_DEGREES), 360);
         antennaPos = tag.contains(KEY_ANTENNA_POS) ? BlockPos.of(tag.getLong(KEY_ANTENNA_POS)) : null;

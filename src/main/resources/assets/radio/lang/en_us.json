@@ -37,7 +37,6 @@
   "item.radio.signal_meter": "Signal Meter",
   "item.radio.spectrum_analyser": "Spectrum Analyser",
   "item.radio.registry": "Transmitter Registry",
-  "item.radio.meteor_forecaster": "Meteor Forecaster",
   "item.radio.linking_tool": "Linking Tool",
   "container.radio.radio": "Radio",
   "container.radio.sony": "Sony XDR-S41D",
@@ -222,6 +221,5 @@
   "tooltip.radio.web_tablet": "Opens Webservers and FlightTracking apps.",
   "tooltip.radio.adsb_transponder": "Broadcasts its carrier’s position, altitude, heading, and speed.",
   "tooltip.radio.navigator": "Shows nearby ADS-B contacts and two tuned VOR readings.",
-  "tooltip.radio.meteor_forecaster": "Shows the current meteor scatter rate and openings.",
   "tooltip.radio.linking_tool": "Connects antennas, receivers, servers, and transmitters."
 }

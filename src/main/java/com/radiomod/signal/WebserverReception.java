@@ -85,6 +85,7 @@ public final class WebserverReception {
                     + SignalMath.linkedAntennaGainDb(level, webserver.antennaPos(), webserver.getBlockPos(),
                             Vec3.atCenterOf(pos))
                     - (webserver.hasAntennaConnected() ? 0 : 22);
+            signal = MeteorScatter.signal(level, tx, receive, tuned, signal, underwater);
             if (signal > bestSignal) { bestSignal = signal; best = tx; }
         }
         if (best != null) bestSignal += drift;
@@ -123,7 +124,8 @@ public final class WebserverReception {
         int bearing = Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(dx, -dz))), 360);
         int distance = (int) Math.round(receive.distanceTo(Vec3.atCenterOf(txPos)));
         return new Sample(true, bestSignal, snr, ber, ps, pi, country, rt, identified,
-                identified ? Dx3Catalog.firstPsFrame(best) : "",
+                identified ? Dx3Catalog.firstPsFrame(best) + " · "
+                        + TransmitterSites.displayName(level, best.getBlockPos()) : "",
                 identified ? txPos.getX() : 0, identified ? txPos.getY() : 0,
                 identified ? txPos.getZ() : 0, identified ? best.getPowerW() : 0,
                 identified ? bearing : 0, identified ? distance : 0, logo,

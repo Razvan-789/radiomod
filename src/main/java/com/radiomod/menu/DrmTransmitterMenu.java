@@ -12,12 +12,13 @@ import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
-public class DrmTransmitterMenu extends AbstractContainerMenu {
+public class DrmTransmitterMenu extends AbstractContainerMenu implements SiteNamedTransmitterMenu {
     public static final int FREQ_DOWN = 0, FREQ_UP = 1, POWER_DOWN = 2, POWER_UP = 3, MODE = 4, BANDWIDTH = 5;
     public static final int SET_FREQ = 100_000, SET_POWER = 200_000;
     public static final int PRESET_SAVE_BASE = 300_000, PRESET_LOAD_BASE = 300_010;
     @Nullable private final DrmTransmitterBlockEntity tx;
     private final Player owner;
+    @Override public net.minecraft.core.BlockPos transmitterPos() { return tx == null ? null : tx.getBlockPos(); }
     private final DataSlot presetMask = addDataSlot(DataSlot.standalone());
     private final TextSlots[] presetLabels = {new TextSlots(52), new TextSlots(52), new TextSlots(52)};
     private final DataSlot frequency = addDataSlot(DataSlot.standalone());

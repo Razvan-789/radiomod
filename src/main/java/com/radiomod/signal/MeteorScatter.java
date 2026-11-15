@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
 /** Real-time FM meteor openings. Reception remains limited to Minecraft night. */
 public final class MeteorScatter {
     public static final int RANDOM_RATE = 0;
-    public static final int MIN_RATE = 20;
+    public static final int MIN_RATE = 1;
     public static final int MAX_RATE = 1_200;
     private static final long HOUR_MS = 3_600_000L;
     private static final long NIGHT_START = 13_000L;
@@ -35,6 +35,9 @@ public final class MeteorScatter {
 
     public static double signal(Level level, TransmitterBlockEntity transmitter, Vec3 receiver,
                                 int tunedFrequencyKhz, double ordinaryDbuv, boolean underwater) {
+        if (Math.abs(transmitter.getFrequencyKhz() - tunedFrequencyKhz) <= 30)
+            ordinaryDbuv = PropagationEffects.fm(level, transmitter.getBlockPos(), receiver,
+                    transmitter.getFrequencyKhz(), ordinaryDbuv, underwater);
         if (!(level instanceof ServerLevel server) || !isNight(server) || ordinaryDbuv >= 5.0
                 || Math.abs(transmitter.getFrequencyKhz() - tunedFrequencyKhz) > 30) return ordinaryDbuv;
         double distance = Vec3.atCenterOf(transmitter.getBlockPos()).distanceTo(receiver);
@@ -101,7 +104,7 @@ public final class MeteorScatter {
 
     public static void setRate(ServerLevel level, int rate) {
         if (rate != RANDOM_RATE && (rate < MIN_RATE || rate > MAX_RATE)) {
-            throw new IllegalArgumentException("Meteor rate must be 0 or 20–1200 per hour");
+            throw new IllegalArgumentException("Meteor rate must be 0 or 1–1200 per hour");
         }
         Settings settings = settings(level);
         if (settings.rate != rate) {

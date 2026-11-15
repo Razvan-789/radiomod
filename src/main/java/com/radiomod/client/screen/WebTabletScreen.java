@@ -5,6 +5,7 @@ import com.radiomod.menu.WebTabletMenu;
 import com.radiomod.network.SyncWebTabletPayload;
 import com.radiomod.network.SyncAdsbTabletPayload;
 import com.radiomod.network.SyncAdsbRadarPayload;
+import com.radiomod.network.SyncPropagationPayload;
 import com.radiomod.network.WebTabletActionPayload;
 import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
@@ -21,8 +22,8 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
     private static final int TEXT = 0xFFF2F6EB, DIM = 0xFFB0BAA9;
     private static final int[] ADSB_ZOOMS = {1, 2, 5, 10, 25, 70, 140, 280};
     private EditBox frequency, location, background, color;
-    private Button back, fm, drm, af, home, webApp, flightApp, adsbRange, adsbDimension, down, up, tune, play, settings, save;
-    private boolean configPage, afPage, adsbMode, homePage, playing;
+    private Button back, fm, drm, af, home, webApp, flightApp, propagationApp, adsbRange, adsbDimension, down, up, tune, play, settings, save;
+    private boolean configPage, afPage, adsbMode, propagationMode, homePage, playing;
     private int listScroll, afScroll, adsbListScroll, adsbSelectedIndex = -1;
     private boolean draggingMap, panPending;
     private double dragStartX, dragStartY;
@@ -53,6 +54,8 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
                 .bounds(firstCard + 12, y + 239, Math.max(70, cardWidth - 24), 24).build());
         flightApp = addRenderableWidget(Button.builder(Component.literal("FLIGHTTRACKING"), b -> openFlightApp())
                 .bounds(secondCard + 12, y + 239, Math.max(70, cardWidth - 24), 24).build());
+        propagationApp = addRenderableWidget(Button.builder(Component.literal("PROPAGATION"), b -> openPropagationApp())
+                .bounds(x + w / 2 - 90, y + h - 36, 180, 23).build());
         adsbDimension = addRenderableWidget(Button.builder(Component.literal("DIMENSION"), b -> cycleAdsbDimension())
                 .bounds(x + 317, y + 10, Math.max(70, w - 448), 20).build());
         fm = addRenderableWidget(Button.builder(Component.literal("FM"), b -> send("mode", "", 0))
@@ -95,10 +98,12 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
     }
     private void showHome() {
         if (menu.localConfig()) return;
+        if (propagationMode) send("propagation_mode", "", 0);
         if (adsbMode) send("adsb_mode", "", 0);
         else if (menu.snapshot() != null && menu.snapshot().selected()) send("back", "", 0);
         homePage = true;
         adsbMode = false;
+        propagationMode = false;
         afPage = false;
         stopAudio();
         draggingMap = panPending = false;
@@ -108,17 +113,29 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
     private void openWebApp() {
         homePage = false;
         adsbMode = false;
+        propagationMode = false;
+        send("propagation_mode", "", 0);
         send("adsb_mode", "", 0);
         updateWidgets();
     }
     private void openFlightApp() {
         homePage = false;
         adsbMode = true;
+        propagationMode = false;
+        send("propagation_mode", "", 0);
         stopAudio();
         menu.clearAdsbSnapshot();
         draggingMap = panPending = false;
         dragOffsetX = dragOffsetY = 0;
         send("adsb_mode", "", 1);
+        updateWidgets();
+    }
+    private void openPropagationApp() {
+        homePage = false;
+        adsbMode = false;
+        propagationMode = true;
+        stopAudio();
+        send("propagation_mode", "", 1);
         updateWidgets();
     }
     private EditBox field(int x, int y, int width, int max, String hint) {
@@ -179,6 +196,7 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
     @Override protected void containerTick() {
         super.containerTick();
         if (homePage) { WebTabletAudio.get().stop(); updateWidgets(); return; }
+        if (propagationMode) { WebTabletAudio.get().stop(); updateWidgets(); return; }
         if (adsbMode) {
             WebTabletAudio.get().stop();
             SyncAdsbTabletPayload view = menu.adsbSnapshot();
@@ -212,8 +230,14 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
     private void updateWidgets() {
         SyncWebTabletPayload state = menu.snapshot();
         home.visible = !menu.localConfig() && !homePage;
-        webApp.visible = flightApp.visible = homePage;
+        webApp.visible = flightApp.visible = propagationApp.visible = homePage;
         if (homePage) {
+            back.visible = fm.visible = drm.visible = af.visible = down.visible = up.visible = tune.visible = play.visible = false;
+            frequency.visible = settings.visible = location.visible = background.visible = color.visible = save.visible = false;
+            adsbRange.visible = adsbDimension.visible = false;
+            return;
+        }
+        if (propagationMode) {
             back.visible = fm.visible = drm.visible = af.visible = down.visible = up.visible = tune.visible = play.visible = false;
             frequency.visible = settings.visible = location.visible = background.visible = color.visible = save.visible = false;
             adsbRange.visible = adsbDimension.visible = false;
@@ -251,7 +275,7 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
         }
     }
     @Override public boolean mouseClicked(double mx, double my, int button) {
-        if (homePage) return super.mouseClicked(mx, my, button);
+        if (homePage || propagationMode) return super.mouseClicked(mx, my, button);
         if (adsbMode) return adsbMouseClicked(mx, my, button);
         SyncWebTabletPayload state = menu.snapshot();
         if (button == 0 && state != null && !state.selected()) {
@@ -268,7 +292,7 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
         return super.mouseClicked(mx, my, button);
     }
     @Override public boolean mouseScrolled(double mx, double my, double sx, double sy) {
-        if (homePage) return super.mouseScrolled(mx, my, sx, sy);
+        if (homePage || propagationMode) return super.mouseScrolled(mx, my, sx, sy);
         if (adsbMode) {
             SyncAdsbTabletPayload view = menu.adsbSnapshot();
             if (view != null) {
@@ -465,6 +489,7 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
     }
     @Override protected void renderBg(GuiGraphics g, float partial, int mouseX, int mouseY) {
         if (homePage) { renderHomeBg(g); return; }
+        if (propagationMode) { renderPropagationBg(g); return; }
         if (adsbMode) { renderAdsbBg(g); return; }
         int x = leftPos, y = topPos, w = imageWidth, h = imageHeight;
         SyncWebTabletPayload state = menu.snapshot();
@@ -493,6 +518,7 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
     }
     @Override protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
         if (homePage) { renderHomeLabels(g); return; }
+        if (propagationMode) { renderPropagationLabels(g); return; }
         if (adsbMode) { renderAdsbLabels(g); return; }
         SyncWebTabletPayload state = menu.snapshot();
         if (state == null) { g.drawString(font, "Connecting...", 20, 52, DIM, false); return; }
@@ -529,7 +555,7 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
                 : state.pi().isBlank() ? "----" : state.pi() + "  " + state.country(), 28, 286, TEXT, false);
         g.drawString(font, state.drm() ? "TEXT" : "RADIO TEXT / ID", w / 2 + 13, 263, accent, false);
         if (state.identified()) {
-            g.drawString(font, fit(state.stationName() + "  " + state.txX() + ", " + state.txY() + ", " + state.txZ(),
+            g.drawString(font, fit(state.stationName(),
                     w / 2 - 48), w / 2 + 13, 281, TEXT, false);
             g.drawString(font, state.powerW() + " W  ·  " + state.distance() + " m  ·  "
                     + state.bearing() + "°", w / 2 + 13, 296, DIM, false);
@@ -587,6 +613,31 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
                 left + width - 80, top + 3, DIM, false);
     }
     private String fit(String value, int pixels) { return font.plainSubstrByWidth(value, Math.max(16, pixels)); }
+    private void renderPropagationBg(GuiGraphics g) {
+        int x = leftPos, y = topPos, w = imageWidth, h = imageHeight;
+        g.fill(x, y, x + w, y + h, 0xFF101820);
+        g.fill(x + 8, y + 8, x + w - 8, y + h - 8, 0xFF173047);
+        g.fill(x + 8, y + 8, x + w - 8, y + 42, 0xFF234969);
+        for (int i = 0; i < 4; i++)
+            g.fill(x + 18, y + 54 + i * 70, x + w - 18, y + 111 + i * 70, 0xFF22425B);
+    }
+    private void renderPropagationLabels(GuiGraphics g) {
+        SyncPropagationPayload state = menu.propagationSnapshot();
+        String[] names = {"METEOR SCATTER", "SPORADIC-E", "TROPOSPHERIC", "AURORASCATTER"};
+        String[] values = state == null ? new String[]{"Loading...", "Loading...", "Loading...", "Loading..."}
+                : new String[]{state.meteor(), state.sporadic(), state.tropo(), state.aurora()};
+        g.drawString(font, "PROPAGATION", 20, 18, TEXT, false);
+        for (int i = 0; i < 4; i++) {
+            int row = 63 + i * 70;
+            g.drawString(font, names[i], 28, row, 0xFF99D9F1, false);
+            String message = values[i];
+            var lines = font.split(Component.literal(message), imageWidth - 70);
+            for (int line = 0; line < Math.min(2, lines.size()); line++)
+                g.drawString(font, lines.get(line), 28, row + 18 + line * 12, TEXT, false);
+        }
+        g.drawString(font, "Rates are set with /radiomod <type> rate <value> by operators.",
+                22, imageHeight - 28, DIM, false);
+    }
     private void renderHomeBg(GuiGraphics g) {
         int x = leftPos, y = topPos, w = imageWidth, h = imageHeight;
         g.fill(x, y, x + w, y + h, 0xFF101820);
@@ -621,6 +672,7 @@ public class WebTabletScreen extends AbstractContainerScreen<WebTabletMenu> {
         g.drawString(font, "FlightTracking", imageWidth / 2 + 28, 291, TEXT, false);
         g.drawString(font, "FM / DRM receivers", imageWidth / 2 - 184, 307, DIM, false);
         g.drawString(font, "ADS-B / VOR map", imageWidth / 2 + 28, 307, DIM, false);
+        g.drawString(font, "Propagation conditions", imageWidth / 2 - 56, imageHeight - 54, DIM, false);
     }
     private void renderTabletBezel(GuiGraphics g) {
         if (menu.localConfig()) return;

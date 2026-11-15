@@ -52,6 +52,8 @@ public final class DabSfnReception {
                     receiveFrequency, transmitter.hasAntennaConnected(), transmitter.isDirectionalEnabled(),
                     transmitter.getDirectionDegrees(), Vec3.atCenterOf(pos), receiver, overhead, underwater)
                     + transmitter.antennaGainToward(receiver);
+            if (Math.abs(frequency - receiveFrequency) < 800)
+                signal = PropagationEffects.dab(level, pos, receiver, frequency, signal, underwater);
             if (receiverBlockPos != null) {
                 signal += SignalMath.linkedAntennaGainDb(level, receiverAntennaPos,
                         receiverBlockPos, Vec3.atCenterOf(pos));
