@@ -17,6 +17,7 @@ public final class PropagationEffects {
     private static final long SPORADIC_SLOT_MS = 20 * 60_000L;
     private static final long SPORADIC_FADE_MS = 3_500L;
     private static final long AURORA_SLOT_MS = 30 * 60_000L;
+    private static final long AURORA_FADE_MS = 3_000L;
     private PropagationEffects() { }
 
     public enum Kind { SPORADIC, TROPO, AURORA }
@@ -139,7 +140,7 @@ public final class PropagationEffects {
             if (opening.active()) {
                 double fade = Math.clamp(Math.min((km - 100) / 100, (900 - km) / 150), 0, 1);
                 double peak = (digital ? 5.0 : 8.0) * opening.muf() / 10.0;
-                result = Math.max(result, peak * fade * driftingNoise(server, transmitter, receiver, now, 8_000L)
+                result = Math.max(result, peak * fade * driftingNoise(server, transmitter, receiver, now, AURORA_FADE_MS)
                         - (underwater ? digital ? 20 : 12 : 0));
             }
         }

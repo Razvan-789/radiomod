@@ -7,9 +7,9 @@
 ❌ - Planned, but not implemented
 
 - ✅ FM Radio and transmitters
-- ⚠️ RDS and advanced RDS for FM stations.
-- ⚠️ Sporadic-E, Tropo and Aurorascatter propagation.
-- ⚠️ Meteorscatter
+- ✅ RDS and advanced RDS for FM stations.
+- ✅ Sporadic-E, Tropo and Aurorascatter propagation.
+- ✅ Meteorscatter
 - ❌ LW, MW, SW AM radio.
 - ⚠️ DRM30 radio with realistic signal propagation.
 - ✅ DAB/DAB+ Radio
@@ -31,7 +31,7 @@ Radio Mod adds transmitter blocks, radios and other items. It also calculates ea
 
 **Tablet — Propagation app:** Open the tablet and choose **PROPAGATION** to see the current meteor rate and FM openings, Sporadic-E MUF and opening status, tropo strength and ducting, and aurorascatter intensity. The readout updates once per second. The separate Meteor Forecaster item has been removed.
 
-**Propagation:** Sporadic-E affects the whole FM band when an opening's maximum usable frequency (MUF) reaches it. Openings are scheduled for 5–15 real minutes during Minecraft daytime/evening; distant signals between 600 and 1,200 configured mod kilometres waver on a roughly 3.5-second random pattern and usually peak around 20–25 dBµV, rarely 40 dBµV. Tropo affects FM and DAB in clear weather, with its strongest lift near 06:00 Minecraft time. Mild lift is common; rare ducts can extend reception up to 200 mod kilometres and last 3–4 Minecraft days. Aurorascatter affects FM and DAB only in cold or snowy biomes on full-moon nights and produces weak, unstable signals up to roughly 5–8 dBµV. The mod's kilometres-per-block setting controls all these distances. Transmitter chunks must be loaded for their signals to be received.
+**Propagation:** Sporadic-E affects the whole FM band when an opening's maximum usable frequency (MUF) reaches it. Openings are scheduled for 5–15 real minutes during Minecraft daytime/evening; distant signals between 600 and 1,200 configured mod kilometres waver on a roughly 3.5-second random pattern and usually peak around 20–25 dBµV, rarely 40 dBµV. Tropo affects FM and DAB in clear weather, with its strongest lift near 06:00 Minecraft time. Mild lift is common; rare ducts can extend reception up to 200 mod kilometres and last 3–4 Minecraft days. Aurorascatter affects FM and DAB only in cold or snowy biomes on full-moon nights and produces weak, unstable signals that waver on a roughly 3-second random pattern, up to roughly 5–8 dBµV. The mod's kilometres-per-block setting controls all these distances. Transmitter chunks must be loaded for their signals to be received.
 
 Operators can set each dimension's conditions with `/radiomod meteorscatter rate <0–1200>`, `/radiomod tropo rate <0–11>`, `/radiomod sporadic rate <0 or 60–108>`, and `/radiomod aurora rate <0–10>`. Zero selects random conditions. Meteor values are meteors per real hour; sporadic values are MUF in MHz; tropo and aurora values are strength and intensity. Leave off `rate` to read the current status. Rate changes require permission level 2.
 
