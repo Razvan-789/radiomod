@@ -79,8 +79,8 @@ public class DrmRadioMenu extends AbstractContainerMenu {
     }
     @Override public boolean stillValid(Player player) {
         return radio == null || radio.getLevel() != null && radio.getLevel().getBlockEntity(radio.getBlockPos()) == radio
-                && player.distanceToSqr(radio.getBlockPos().getX() + .5, radio.getBlockPos().getY() + .5,
-                radio.getBlockPos().getZ() + .5) <= 64;
+                && com.radiomod.signal.MovingRadioPositions.world(player.level(), player.position())
+                .distanceToSqr(com.radiomod.signal.MovingRadioPositions.world(player.level(), radio.getBlockPos())) <= 64;
     }
     @Override public ItemStack quickMoveStack(Player player, int slot) { return ItemStack.EMPTY; }
     private final class TextSlots {

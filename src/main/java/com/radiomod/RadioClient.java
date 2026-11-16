@@ -22,6 +22,9 @@ import com.radiomod.client.screen.AdsbRadarScreen;
 import com.radiomod.client.screen.AdsbTransponderScreen;
 import com.radiomod.client.screen.NavigatorScreen;
 import com.radiomod.client.screen.VorTransmitterScreen;
+import com.radiomod.client.screen.RadioDisplayScreen;
+import com.radiomod.client.RadioDisplayRenderer;
+import com.radiomod.menu.RadioDisplayMenu;
 import com.radiomod.menu.RegistryMenu;
 import com.radiomod.menu.WebTabletMenu;
 import com.radiomod.menu.AdsbRadarMenu;
@@ -55,6 +58,7 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -97,6 +101,7 @@ public class RadioClient {
 
     @SubscribeEvent
     static void registerScreens(RegisterMenuScreensEvent event) {
+        event.<RadioDisplayMenu, RadioDisplayScreen>register(Radio.RADIO_DISPLAY_MENU.get(), RadioDisplayScreen::new);
         event.<RadioMenu, RadioScreen>register(
                 Radio.RADIO_MENU.get(),
                 (RadioMenu menu, Inventory inventory, Component title) -> new RadioScreen(menu, inventory, title)
@@ -128,6 +133,11 @@ public class RadioClient {
         event.register(Radio.DAB_SERVER_MENU.get(), DabServerScreen::new);
         event.register(Radio.RECORDER_MENU.get(), RecorderScreen::new);
         event.register(Radio.DIRECTIONAL_ANTENNA_MENU.get(), DirectionalAntennaScreen::new);
+    }
+
+    @SubscribeEvent
+    static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(Radio.RADIO_DISPLAY_BLOCK_ENTITY.get(), RadioDisplayRenderer::new);
     }
 
     @SubscribeEvent

@@ -33,7 +33,7 @@ public final class DrmSignal {
         if (delta > Math.max(3, tx.getBandwidthKhz() / 2 + 2)) return -100;
         Vec3 source = Vec3.atCenterOf(tx.getAntennaPos() != null && tx.hasAntennaConnected()
                 ? tx.getAntennaPos() : tx.getBlockPos());
-        Vec3 target = Vec3.atCenterOf(receiver);
+        Vec3 target = MovingRadioPositions.world(level, receiver);
         double distance = Math.sqrt(Math.pow(source.x - target.x, 2) + Math.pow(source.z - target.z, 2)
                 + Math.pow(Math.min(64, Math.abs(source.y - target.y)), 2));
         double distanceKm = distance * Config.getKilometersPerBlock();
@@ -70,7 +70,7 @@ public final class DrmSignal {
         int overhead = SignalMath.countOverheadBlocks(level, target);
         signal -= Math.min(24, overhead * (band(tx.getFrequencyKhz()).equals("SW") ? 1.4 :
                 band(tx.getFrequencyKhz()).equals("MW") ? 0.65 : 0.35));
-        if (receiver.getY() < 60) signal -= Math.min(45, (60 - receiver.getY())
+        if (target.y < 60) signal -= Math.min(45, (60 - target.y)
                 * (band(tx.getFrequencyKhz()).equals("SW") ? 0.75 :
                 band(tx.getFrequencyKhz()).equals("MW") ? 0.25 : 0.1));
         if (underwater) signal -= band(tx.getFrequencyKhz()).equals("SW") ? 23 : 12;
@@ -80,7 +80,7 @@ public final class DrmSignal {
     public static double snr(Level level, DrmTransmitterBlockEntity tx, BlockPos receiver, int tunedKhz,
                              boolean underwater) {
         double strength = signal(level, tx, receiver, tunedKhz, underwater);
-        double noise = SignalMath.calculateNoiseFloorDbuv(Vec3.atCenterOf(receiver));
+        double noise = SignalMath.calculateNoiseFloorDbuv(MovingRadioPositions.world(level, receiver));
         return Math.max(-20, Math.min(40, (strength - noise) * 0.48));
     }
 }

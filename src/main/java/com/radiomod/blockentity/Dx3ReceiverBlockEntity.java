@@ -41,7 +41,10 @@ public class Dx3ReceiverBlockEntity extends BlockEntity {
 
     @Nullable public BlockPos getAntennaPos() { return antennaPos; }
     public void setAntennaPos(@Nullable BlockPos pos) { antennaPos = pos == null ? null : pos.immutable(); setChanged(); }
-    public Vec3 receptionPoint() { return Vec3.atCenterOf(hasAntennaConnected() ? antennaPos : worldPosition); }
+    public Vec3 receptionPoint() {
+        return com.radiomod.signal.MovingRadioPositions.world(level,
+                hasAntennaConnected() ? antennaPos : worldPosition);
+    }
     public double receiverLossDb() { return hasAntennaConnected() ? 0.0 : 22.0; }
     public double antennaGainToward(Vec3 transmitter) {
         return com.radiomod.signal.SignalMath.linkedAntennaGainDb(level, antennaPos, getBlockPos(), transmitter);

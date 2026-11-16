@@ -101,7 +101,9 @@ public final class Dx3ReceiverCatalog {
                 double signal = fmSignal(receiver, fm, point, overhead) - loss;
                 if (signal > bestSignal) { bestSignal = signal; best = fm; }
             }
-            if (best == null || bestSignal < MIN_SIGNAL) {
+            // Keep a tuned FM programme available below the station-list threshold so
+            // its audio can fade into hiss instead of disappearing at 5 dBµV.
+            if (best == null || bestSignal < -12.0) {
                 RdsTextDecoding.clearReceiver(receiver);
                 return Sample.EMPTY;
             }

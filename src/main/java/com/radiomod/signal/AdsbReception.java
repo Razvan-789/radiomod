@@ -32,7 +32,9 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
 public final class AdsbReception {
     public static final double MAX_RANGE_KM = 280.0;
     private static final Map<ServerLevel, Cache> CACHES = new WeakHashMap<>();
+    private static final Map<ServerLevel, Cache> PLOT_CACHES = new WeakHashMap<>();
     private static final Map<ServerLevel, Map<UUID, Track>> TRACKS = new WeakHashMap<>();
+    private static final Map<ServerLevel, Map<UUID, Track>> PLOT_TRACKS = new WeakHashMap<>();
     private static final Map<ServerLevel, Set<ChunkPos>> LOADED_CHUNKS = new WeakHashMap<>();
     private AdsbReception() { }
     public record Motion(int headingDegrees, double speedKmH) { }
@@ -159,6 +161,7 @@ public final class AdsbReception {
             }
         }
         for (ChunkPos chunkPos : LOADED_CHUNKS.getOrDefault(level, Set.of())) {
+            if (MovingRadioPositions.isPlotChunk(level, chunkPos.x, chunkPos.z)) continue;
             LevelChunk chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
             if (chunk == null) continue;
             for (BlockPos pos : chunk.getBlockEntitiesPos()) {
@@ -177,10 +180,59 @@ public final class AdsbReception {
                 }
             }
         }
+        found.addAll(plotBroadcasts(level));
         TRACKS.put(level, nextTracks);
         List<Broadcast> result = List.copyOf(found);
         CACHES.put(level, new Cache(level.getGameTime(), result));
         return result;
+    }
+
+    /** Airship containers move with the plot; poll their world positions only every 40 ticks. */
+    private static List<Broadcast> plotBroadcasts(ServerLevel level) {
+        Cache cached = PLOT_CACHES.get(level);
+        long tick = level.getGameTime();
+        if (cached != null && tick >= cached.tick() && tick - cached.tick() < 40)
+            return cached.broadcasts();
+        Map<UUID, Track> previous = PLOT_TRACKS.getOrDefault(level, Map.of());
+        Map<UUID, Track> next = new HashMap<>();
+        List<Broadcast> found = new ArrayList<>();
+        for (LevelChunk chunk : MovingRadioPositions.loadedPlotChunks(level)) {
+            for (BlockPos pos : chunk.getBlockEntitiesPos()) {
+                var blockEntity = level.getBlockEntity(pos);
+                if (blockEntity == null) continue;
+                Container container = blockEntity instanceof Container inventory ? inventory : null;
+                IItemHandler handler = container == null
+                        ? level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null) : null;
+                if (container == null && handler == null) continue;
+                Vec3 position = MovingRadioPositions.world(level, pos);
+                UUID sourceId = UUID.nameUUIDFromBytes((level.dimension().location() + ":" + pos.asLong())
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                Motion movement = motion(position, previous.get(sourceId), tick);
+                next.put(sourceId, new Track(position, tick));
+                String carrier = "Container " + BlockPos.containing(position).toShortString();
+                if (container != null) {
+                    for (int slot = 0; slot < Math.min(container.getContainerSize(), 256); slot++)
+                        add(found, sourceId, container.getItem(slot), carrier, position, movement);
+                } else {
+                    for (int slot = 0; slot < Math.min(handler.getSlots(), 256); slot++)
+                        add(found, sourceId, handler.getStackInSlot(slot), carrier, position, movement);
+                }
+            }
+        }
+        PLOT_TRACKS.put(level, next);
+        List<Broadcast> result = List.copyOf(found);
+        PLOT_CACHES.put(level, new Cache(tick, result));
+        return result;
+    }
+
+    private static Motion motion(Vec3 position, Track previous, long tick) {
+        if (previous == null || tick <= previous.tick()) return new Motion(0, 0);
+        Vec3 velocity = position.subtract(previous.position()).scale(1.0 / (tick - previous.tick()));
+        double horizontal = Math.hypot(velocity.x, velocity.z);
+        int heading = horizontal > .0001
+                ? Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(velocity.x, -velocity.z))), 360)
+                : 0;
+        return new Motion(heading, Math.max(0, Math.min(100_000, horizontal * 20 * 3.6)));
     }
     public static Motion currentMotion(Entity entity) { return motion(entity, null, 0); }
     private static Motion motion(Entity entity, Track previous, long tick) {

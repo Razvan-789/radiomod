@@ -13,6 +13,7 @@ import com.radiomod.blockentity.WebserverBlockEntity;
 import com.radiomod.blockentity.AdsbReceiverBlockEntity;
 import com.radiomod.blockentity.AdsbServerBlockEntity;
 import com.radiomod.blockentity.VorTransmitterBlockEntity;
+import com.radiomod.blockentity.RadioDisplayBlockEntity;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -30,6 +31,7 @@ public class LinkingToolItem extends Item {
     private static final Map<UUID, BlockPos> SELECTED_ANTENNA_POSITIONS = new HashMap<>();
     private static final Map<UUID, GlobalPos> SELECTED_DAB_SERVERS = new HashMap<>();
     private static final Map<UUID, GlobalPos> SELECTED_ADSB_RECEIVERS = new HashMap<>();
+    private static final Map<UUID, GlobalPos> SELECTED_RADIOS = new HashMap<>();
 
     public LinkingToolItem(Properties properties) {
         super(properties);
@@ -42,6 +44,20 @@ public class LinkingToolItem extends Item {
         }
 
         BlockEntity blockEntity = context.getLevel().getBlockEntity(context.getClickedPos());
+        if (blockEntity instanceof RadioDisplayBlockEntity display) {
+            GlobalPos selected = SELECTED_RADIOS.get(player.getUUID());
+            if (selected == null || !selected.dimension().equals(context.getLevel().dimension())
+                    || !(context.getLevel().getBlockEntity(selected.pos()) instanceof Dx3ReceiverBlockEntity
+                    || context.getLevel().getBlockEntity(selected.pos()) instanceof DrmRadioBlockEntity)) {
+                player.displayClientMessage(Component.literal("Select a placeable radio first, then click this display")
+                        .withStyle(ChatFormatting.RED), true);
+                return InteractionResult.CONSUME;
+            }
+            display.link(selected.pos());
+            player.displayClientMessage(Component.literal("Display linked to radio at "
+                    + selected.pos().toShortString()).withStyle(ChatFormatting.GREEN), true);
+            return InteractionResult.CONSUME;
+        }
         if (blockEntity instanceof DabServerBlockEntity server) {
             if (server.getEnsembleCount() == 0) {
                 player.displayClientMessage(Component.translatable("message.radio.linking_tool.no_mux")
@@ -71,8 +87,9 @@ public class LinkingToolItem extends Item {
         if (blockEntity instanceof Dx3ReceiverBlockEntity receiver) {
             BlockPos antennaPos = SELECTED_ANTENNA_POSITIONS.get(player.getUUID());
             if (antennaPos == null) {
-                player.displayClientMessage(Component.translatable("message.radio.linking_tool.select_antenna_first")
-                        .withStyle(ChatFormatting.RED), true);
+                SELECTED_RADIOS.put(player.getUUID(), GlobalPos.of(context.getLevel().dimension(), receiver.getBlockPos()));
+                player.displayClientMessage(Component.literal("Radio selected; click a display to link it")
+                        .withStyle(ChatFormatting.YELLOW), true);
                 return InteractionResult.CONSUME;
             }
             if (!(context.getLevel().getBlockEntity(antennaPos) instanceof AntennaBlockEntity antenna)) {
@@ -308,7 +325,13 @@ public class LinkingToolItem extends Item {
 
         if (blockEntity instanceof DrmRadioBlockEntity receiver) {
             BlockPos antennaPos = SELECTED_ANTENNA_POSITIONS.get(player.getUUID());
-            if (antennaPos == null || !(context.getLevel().getBlockEntity(antennaPos) instanceof AntennaBlockEntity antenna)
+            if (antennaPos == null) {
+                SELECTED_RADIOS.put(player.getUUID(), GlobalPos.of(context.getLevel().dimension(), receiver.getBlockPos()));
+                player.displayClientMessage(Component.literal("Radio selected; click a display to link it")
+                        .withStyle(ChatFormatting.YELLOW), true);
+                return InteractionResult.CONSUME;
+            }
+            if (!(context.getLevel().getBlockEntity(antennaPos) instanceof AntennaBlockEntity antenna)
                     || !(antenna instanceof LoopAntennaBlockEntity || antenna instanceof YagiAntennaBlockEntity)) {
                 player.displayClientMessage(Component.literal("Select a loop or Yagi antenna first").withStyle(ChatFormatting.RED), true);
                 return InteractionResult.CONSUME;

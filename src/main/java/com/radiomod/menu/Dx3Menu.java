@@ -657,8 +657,9 @@ public class Dx3Menu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return !isReceiver() || receiver() != null && player.distanceToSqr(
-                receiverPos.getX() + 0.5, receiverPos.getY() + 0.5, receiverPos.getZ() + 0.5) <= 64;
+        return !isReceiver() || receiver() != null
+                && com.radiomod.signal.MovingRadioPositions.world(player.level(), player.position())
+                .distanceToSqr(com.radiomod.signal.MovingRadioPositions.world(player.level(), receiverPos)) <= 64;
     }
 
     @Override

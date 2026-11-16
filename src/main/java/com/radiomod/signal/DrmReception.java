@@ -44,7 +44,7 @@ public final class DrmReception {
             if (frequencyOffset > bestFrequencyOffset
                     || frequencyOffset == bestFrequencyOffset && signal <= bestSignal) continue;
             double snr = Math.max(-20, Math.min(40, (signal
-                    - SignalMath.calculateNoiseFloorDbuv(net.minecraft.world.phys.Vec3.atCenterOf(receivePos))) * .48));
+                    - SignalMath.calculateNoiseFloorDbuv(MovingRadioPositions.world(level, receivePos))) * .48));
             if (signal < 5 || snr < tx.getMinimumSnrDb()) continue;
             best = tx; bestSignal = signal; bestSnr = snr; bestFrequencyOffset = frequencyOffset;
         }

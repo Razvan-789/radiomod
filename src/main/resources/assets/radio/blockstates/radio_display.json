@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "radio:block/radio_display" },
+    "facing=east": { "model": "radio:block/radio_display", "y": 90 },
+    "facing=south": { "model": "radio:block/radio_display", "y": 180 },
+    "facing=west": { "model": "radio:block/radio_display", "y": 270 }
+  }
+}

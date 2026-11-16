@@ -74,7 +74,7 @@ public final class TechnisatReception {
     private static List<Dx3Station> scanDrm(Level level, BlockPos receivePos, boolean underwater,
                                             double receiverLossDb, BlockPos antennaPos, BlockPos endpointPos) {
         Map<Integer, DrmCandidate> strongest = new HashMap<>();
-        double noise = SignalMath.calculateNoiseFloorDbuv(Vec3.atCenterOf(receivePos));
+        double noise = SignalMath.calculateNoiseFloorDbuv(MovingRadioPositions.world(level, receivePos));
         for (BlockPos pos : SignalNetwork.getTransmitters(level)) {
             if (!(level.getBlockEntity(pos) instanceof DrmTransmitterBlockEntity tx)) continue;
             int frequency = tx.getFrequencyKhz();

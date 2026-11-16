@@ -4,6 +4,8 @@
   "block.radio.dab_transmitter": "DAB/DAB+ Transmitter",
   "block.radio.dab_server": "DAB Server",
   "block.radio.dx3_receiver": "DX3 Receiver",
+  "block.radio.radio_display": "Radio Display",
+  "container.radio.radio_display": "Radio Display Settings",
   "block.radio.technisat_receiver": "TechniSat Receiver",
   "block.radio.pure_bug": "Pure The Bug",
   "block.radio.recorder": "Recorder",
@@ -214,6 +216,7 @@
   "tooltip.radio.dx3_radio": "Lists receivable FM and DAB stations and switches between them.",
   "tooltip.radio.technisat_radio": "A portable FM, DAB, and DRM radio with service scans.",
   "tooltip.radio.pure_bug": "A placeable DAB radio and speaker that does not receive DAB+.",
+  "tooltip.radio.radio_display": "Shows the station and signal from a linked placeable radio.",
   "tooltip.radio.portable_drm_radio": "Tunes DRM broadcasts without a placed antenna.",
   "tooltip.radio.signal_meter": "Measures FM and DAB signals without playing audio.",
   "tooltip.radio.spectrum_analyser": "Displays FM, DAB and DRM signals as a live spectrum and waterfall.",
@@ -221,5 +224,5 @@
   "tooltip.radio.web_tablet": "Opens Webservers and FlightTracking apps.",
   "tooltip.radio.adsb_transponder": "Broadcasts its carrier’s position, altitude, heading, and speed.",
   "tooltip.radio.navigator": "Shows nearby ADS-B contacts and two tuned VOR readings.",
-  "tooltip.radio.linking_tool": "Connects antennas, receivers, servers, and transmitters."
+  "tooltip.radio.linking_tool": "Connects antennas, receivers, servers, transmitters, and radio displays."
 }

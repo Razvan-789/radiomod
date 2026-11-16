@@ -37,7 +37,7 @@ public final class SignalMath {
         if (antennaPos == null || level == null) return 0.0;
         if (level.getBlockEntity(antennaPos) instanceof DirectionalAntennaBlockEntity antenna
                 && endpointPos.equals(antenna.getLinkedTransmitterPos())) {
-            return antenna.gainToward(otherEnd);
+            return antenna.gainToward(MovingRadioPositions.localBearingTarget(level, antennaPos, otherEnd));
         }
         if (level.getBlockEntity(antennaPos) instanceof YagiAntennaBlockEntity antenna
                 && endpointPos.equals(antenna.getLinkedTransmitterPos())
@@ -45,7 +45,7 @@ public final class SignalMath {
                     || level.getBlockEntity(endpointPos) instanceof DrmRadioBlockEntity
                     || level.getBlockEntity(endpointPos) instanceof WebserverBlockEntity
                     || level.getBlockEntity(endpointPos) instanceof AdsbReceiverBlockEntity))
-            return antenna.gainToward(otherEnd);
+            return antenna.gainToward(MovingRadioPositions.localBearingTarget(level, antennaPos, otherEnd));
         return 0.0;
     }
 

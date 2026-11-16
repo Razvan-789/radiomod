@@ -107,6 +107,11 @@ import com.radiomod.network.RequestDx3CatalogPayload;
 import com.radiomod.network.SyncDx3PlaybackPayload;
 import com.radiomod.network.SyncDx3ReceiverStatePayload;
 import com.radiomod.network.SyncDx3ReceiverAudioPayload;
+import com.radiomod.network.RadioDisplayActionPayload;
+import com.radiomod.block.RadioDisplayBlock;
+import com.radiomod.blockentity.RadioDisplayBlockEntity;
+import com.radiomod.menu.RadioDisplayMenu;
+import com.radiomod.network.SyncReceiverPositionPayload;
 import com.radiomod.network.TechnisatActionPayload;
 import com.radiomod.network.SyncTechnisatStatusPayload;
 import com.radiomod.network.SyncTechnisatReceiverHudPayload;
@@ -128,6 +133,7 @@ import com.radiomod.signal.SignalNetwork;
 import com.radiomod.signal.MeteorScatter;
 import com.radiomod.signal.Dx3ReceiverNetwork;
 import com.radiomod.signal.Dx3ReceiverCatalog;
+import com.radiomod.signal.MovingRadioPositions;
 import com.radiomod.signal.DrmReception;
 import com.radiomod.signal.VorReception;
 import com.radiomod.server.ServerAudioProxy;
@@ -235,6 +241,10 @@ public class Radio {
     public static final DeferredBlock<Block> DX3_RECEIVER_BLOCK = BLOCKS.register("dx3_receiver",
             () -> new Dx3ReceiverBlock(BlockBehaviour.Properties.of().strength(3.0F).requiresCorrectToolForDrops()));
     public static final DeferredItem<BlockItem> DX3_RECEIVER_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("dx3_receiver", DX3_RECEIVER_BLOCK);
+    public static final DeferredBlock<Block> RADIO_DISPLAY_BLOCK = BLOCKS.register("radio_display",
+            () -> new RadioDisplayBlock(BlockBehaviour.Properties.of().strength(2.5F)));
+    public static final DeferredItem<BlockItem> RADIO_DISPLAY_BLOCK_ITEM =
+            ITEMS.registerSimpleBlockItem("radio_display", RADIO_DISPLAY_BLOCK);
     public static final DeferredBlock<Block> TECHNISAT_RECEIVER_BLOCK = BLOCKS.register("technisat_receiver",
             () -> new TechnisatReceiverBlock(BlockBehaviour.Properties.of().strength(2.5F)));
     public static final DeferredItem<BlockItem> TECHNISAT_RECEIVER_BLOCK_ITEM =
@@ -318,6 +328,9 @@ public class Radio {
             BLOCK_ENTITY_TYPES.register("dab_server", () -> BlockEntityType.Builder.of(DabServerBlockEntity::new, DAB_SERVER_BLOCK.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<Dx3ReceiverBlockEntity>> DX3_RECEIVER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register("dx3_receiver", () -> BlockEntityType.Builder.of(Dx3ReceiverBlockEntity::new, DX3_RECEIVER_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RadioDisplayBlockEntity>> RADIO_DISPLAY_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("radio_display", () -> BlockEntityType.Builder.of(
+                    RadioDisplayBlockEntity::new, RADIO_DISPLAY_BLOCK.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TechnisatReceiverBlockEntity>> TECHNISAT_RECEIVER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register("technisat_receiver", () -> BlockEntityType.Builder.of(
                     TechnisatReceiverBlockEntity::new, TECHNISAT_RECEIVER_BLOCK.get()).build(null));
@@ -364,6 +377,9 @@ public class Radio {
     public static final DeferredHolder<MenuType<?>, MenuType<Dx3Menu>> DX3_RECEIVER_MENU =
             MENUS.register("dx3_receiver", () -> IMenuTypeExtension.create((containerId, inventory, byteBuf) ->
                     new Dx3Menu(containerId, inventory, byteBuf.readBlockPos())));
+    public static final DeferredHolder<MenuType<?>, MenuType<RadioDisplayMenu>> RADIO_DISPLAY_MENU =
+            MENUS.register("radio_display", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
+                    new RadioDisplayMenu(id, inventory, buffer.readBlockPos())));
     public static final DeferredHolder<MenuType<?>, MenuType<Dx3Menu>> TECHNISAT_MENU =
             MENUS.register("technisat_radio", () -> IMenuTypeExtension.create((id, inventory, buffer) ->
                     new Dx3Menu(id, inventory, inventory.player, true)));
@@ -449,6 +465,7 @@ public class Radio {
                 output.accept(DAB_SERVER_BLOCK_ITEM.get());
                 output.accept(RECORDER_BLOCK_ITEM.get());
                 output.accept(DX3_RECEIVER_BLOCK_ITEM.get());
+                output.accept(RADIO_DISPLAY_BLOCK_ITEM.get());
                 output.accept(TECHNISAT_RECEIVER_BLOCK_ITEM.get());
                 output.accept(PURE_BUG_BLOCK_ITEM.get());
                 output.accept(ANTENNA_BLOCK_ITEM.get());
@@ -826,6 +843,15 @@ public class Radio {
         registrar.playToClient(SyncDx3ReceiverAudioPayload.TYPE, SyncDx3ReceiverAudioPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
                         com.radiomod.client.PlacedReceiverAudioManager.get().update(payload)));
+        registrar.playToServer(RadioDisplayActionPayload.TYPE, RadioDisplayActionPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player().containerMenu instanceof RadioDisplayMenu menu
+                            && menu.containerId == payload.containerId() && menu.stillValid(context.player())
+                            && menu.display() != null) menu.display().action(payload.action());
+                }));
+        registrar.playToClient(SyncReceiverPositionPayload.TYPE, SyncReceiverPositionPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        com.radiomod.client.PlacedReceiverAudioManager.get().updatePosition(payload)));
         registrar.playToClient(SyncSignalMeterPayload.TYPE, SyncSignalMeterPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> SignalMeterState.updateClient(payload)));
         registrar.playToClient(SyncSpectrumPayload.TYPE, SyncSpectrumPayload.STREAM_CODEC,
@@ -942,6 +968,13 @@ public class Radio {
         event.getDispatcher().register(root);
     }
 
+    private static float fmStaticGain(Dx3ReceiverCatalog.Sample sample) {
+        if (sample == Dx3ReceiverCatalog.Sample.EMPTY) return 0.65f;
+        double bySignal = 0.45 - (sample.signal() - 5.0) * 0.0135;
+        double bySnr = 0.68 - (sample.snr() + 2.0) * 0.024;
+        return (float) Math.max(0.015, Math.min(0.68, Math.max(bySignal, bySnr)));
+    }
+
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
         Player player = event.getEntity();
@@ -959,6 +992,15 @@ public class Radio {
             return;
         }
         AudioUploadManager.prune(serverPlayer);
+        Vec3 listenerPosition = MovingRadioPositions.world(player.level(), player.position());
+        if (MovingRadioPositions.available() && player.tickCount % 20 != 0) {
+            for (BlockPos pos : Dx3ReceiverNetwork.moving(player.level())) {
+                Vec3 speakerPosition = MovingRadioPositions.world(player.level(), pos);
+                if (listenerPosition.distanceToSqr(speakerPosition) <= 40.0 * 40.0)
+                    PacketDistributor.sendToPlayer(serverPlayer,
+                            new SyncReceiverPositionPayload(pos, speakerPosition));
+            }
+        }
         if (player.tickCount % 10 == 0) {
             ItemStack navigator = NavigatorItem.pinnedInInventory(serverPlayer);
             if (!navigator.isEmpty()) {
@@ -972,7 +1014,8 @@ public class Radio {
 
         if (player.tickCount % 20 == 0) {
             for (BlockPos pos : Dx3ReceiverNetwork.get(player.level())) {
-                if (player.position().distanceToSqr(Vec3.atCenterOf(pos)) > 32.0 * 32.0) continue;
+                Vec3 speakerPosition = MovingRadioPositions.world(player.level(), pos);
+                if (listenerPosition.distanceToSqr(speakerPosition) > 32.0 * 32.0) continue;
                 if (player.level().getBlockEntity(pos) instanceof Dx3ReceiverBlockEntity receiver) {
                     if (!(receiver instanceof TechnisatReceiverBlockEntity)) Dx3ReceiverCatalog.autoLink(receiver);
                     if (receiver instanceof TechnisatReceiverBlockEntity technisat
@@ -980,10 +1023,10 @@ public class Radio {
                         DrmReception.Sample sample = DrmReception.sampleReceiver(technisat);
                         String source = sample.decoded() && !receiver.isMuted()
                                 ? sample.transmitter().getStreamUrl() : "";
-                        PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3ReceiverAudioPayload(pos,
+                        PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3ReceiverAudioPayload(pos, speakerPosition,
                                 ServerAudioProxy.buildOpusEquivalentMp3ProxyToken(source,
                                         sample.decoded() ? sample.transmitter().getOpusBitrateKbps() : 32),
-                                source, false));
+                                source, false, 0));
                         String label = sample.decoded() ? sample.transmitter().getServiceLabel() : "";
                         String message = sample.decoded() ? sample.transmitter().getTextMessage() : "";
                         int bars = sample.decoded() ? Math.max(0, Math.min(5,
@@ -994,9 +1037,10 @@ public class Radio {
                                 bars, false, false, "", "", ""));
                     } else {
                         Dx3ReceiverCatalog.Sample sample = Dx3ReceiverCatalog.sample(receiver);
-                        PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3ReceiverAudioPayload(pos,
+                        PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3ReceiverAudioPayload(pos, speakerPosition,
                                 receiver.isMuted() ? "" : sample.url(),
-                                receiver.isMuted() ? "" : sample.sourceUrl(), receiver.isDab()));
+                                receiver.isMuted() ? "" : sample.sourceUrl(), receiver.isDab(),
+                                receiver.isDab() || receiver.isMuted() ? 0 : fmStaticGain(sample)));
                         if (receiver instanceof TechnisatReceiverBlockEntity technisat) {
                             SyncDx3PlayerPayload info = sample.info();
                             int frequency = technisat.getRadioMode() == RadioItem.MODE_DAB
@@ -1011,9 +1055,9 @@ public class Radio {
                 } else if (player.level().getBlockEntity(pos) instanceof DrmRadioBlockEntity receiver) {
                     DrmReception.Sample sample = DrmReception.sample(receiver);
                     String source = sample.decoded() && !receiver.isMuted() ? sample.transmitter().getStreamUrl() : "";
-                    PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3ReceiverAudioPayload(pos,
+                    PacketDistributor.sendToPlayer(serverPlayer, new SyncDx3ReceiverAudioPayload(pos, speakerPosition,
                             ServerAudioProxy.buildOpusEquivalentMp3ProxyToken(source,
-                                    sample.decoded() ? sample.transmitter().getOpusBitrateKbps() : 32), source, false));
+                                    sample.decoded() ? sample.transmitter().getOpusBitrateKbps() : 32), source, false, 0));
                 }
             }
         }
