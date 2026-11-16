@@ -47,7 +47,7 @@ public final class RdsTextDecoding {
 
         private Text update(String newSource, String targetPs, String targetLongPs, String targetRt,
                             int berPercent, long gameTime) {
-            long frame = Math.max(0L, gameTime * 6L / 20L);
+            long frame = RdsTiming.groupAtTick(gameTime);
             if (!source.equals(newSource) || frame < lastFrame) {
                 source = newSource;
                 Arrays.fill(ps, ' ');

@@ -571,6 +571,20 @@ public class SpectrumAnalyserScreen extends AbstractContainerScreen<SpectrumAnal
         int left = 59, right = imageWidth - 17;
         g.fill(left - 4, 46, right, 91, 0xC9081420);
         int textWidth = right - left - 7;
+        boolean cached = !rds.decoded() && !rds.pi().isBlank();
+        if (cached) {
+            String station = "CACHED RDS  PI " + rds.pi() + "   PS "
+                    + (rds.ps().isBlank() ? "________" : rds.ps())
+                    + "   PTY " + PtyNames.name(rds.pty());
+            g.drawString(font, font.plainSubstrByWidth(station, textWidth), left, 52, 0xFFB1B8BE, false);
+            String details = rds.present() ? "RDS not decoding   BER " + rds.berPercent() + "%"
+                    : "Signal lost   last decoded group " + rds.group();
+            g.drawString(font, font.plainSubstrByWidth(details, textWidth), left, 65, 0xFF858F99, false);
+            if (!rds.rt().isBlank())
+                g.drawString(font, font.plainSubstrByWidth("RT " + rds.rt(), textWidth),
+                        left, 78, 0xFFA1ABB3, false);
+            return;
+        }
         if (!rds.present()) {
             g.drawString(font, "RDS unavailable", left, 53, 0xFF8FA6B8, false);
             return;

@@ -16,7 +16,6 @@ public final class PropagationEffects {
     private static final String DATA_NAME = "radio_propagation";
     private static final long SPORADIC_SLOT_MS = 20 * 60_000L;
     private static final long SPORADIC_FADE_MS = 3_500L;
-    private static final long AURORA_SLOT_MS = 30 * 60_000L;
     private static final long AURORA_FADE_MS = 3_000L;
     private PropagationEffects() { }
 
@@ -64,6 +63,11 @@ public final class PropagationEffects {
     }
 
     public static String status(ServerLevel level, Kind kind) {
+        return status(level, kind, null);
+    }
+
+    /** A receiver position lets the status distinguish a cold biome from a warm one. */
+    public static String status(ServerLevel level, Kind kind, Vec3 receiver) {
         long now = System.currentTimeMillis();
         int configured = configured(level, kind);
         return switch (kind) {
@@ -83,13 +87,15 @@ public final class PropagationEffects {
                         : "; waiting for sunny weather");
             }
             case AURORA -> {
-                Opening opening = aurora(level, now);
+                Opening opening = aurora(level);
                 boolean forced = forced(level, Kind.AURORA);
+                boolean night = auroraNight(level);
+                boolean cold = receiver == null || coldBiome(level, receiver);
                 yield "Aurorascatter: " + (configured == 0 ? "random" : "set") + " intensity "
                         + opening.muf() + (forced ? "; FORCED ACTIVE"
-                        : auroraAllowed(level, null) && opening.active()
-                        ? "; active in cold biomes (" + opening.remainingSeconds() + " s left)"
-                        : "; inactive (requires full-moon night and cold biome)");
+                        : !night ? "; inactive (requires full-moon night)"
+                        : !cold ? "; inactive (requires cold or snowy biome)"
+                        : "; active (" + opening.remainingSeconds() + " s left)");
             }
         };
     }
@@ -136,7 +142,7 @@ public final class PropagationEffects {
         }
         if (km >= 100 && km <= 900
                 && (forced(server, Kind.AURORA) || auroraAllowed(server, receiver))) {
-            Opening opening = aurora(server, now);
+            Opening opening = aurora(server);
             if (opening.active()) {
                 double fade = Math.clamp(Math.min((km - 100) / 100, (900 - km) / 150), 0, 1);
                 double peak = (digital ? 5.0 : 8.0) * opening.muf() / 10.0;
@@ -157,14 +163,20 @@ public final class PropagationEffects {
     }
 
     private static boolean auroraAllowed(ServerLevel level, Vec3 receiver) {
+        return auroraNight(level) && (receiver == null || coldBiome(level, receiver));
+    }
+
+    private static boolean auroraNight(ServerLevel level) {
         long tick = Math.floorMod(level.dayTime(), 24_000L);
-        if (!level.dimensionType().hasSkyLight() || tick < 13_000 || tick >= 23_000
-                || level.getMoonPhase() != 0) return false;
-        if (receiver == null) return true;
-        String biome = level.getBiome(BlockPos.containing(receiver)).unwrapKey()
-                .map(key -> key.location().getPath()).orElse("");
-        return biome.contains("snow") || biome.contains("ice") || biome.contains("frozen")
-                || biome.contains("cold") || biome.contains("tundra");
+        return level.dimensionType().hasSkyLight() && tick >= 13_000L && tick < 23_000L
+                && level.getMoonPhase() == 0;
+    }
+
+    private static boolean coldBiome(ServerLevel level, Vec3 receiver) {
+        BlockPos pos = BlockPos.containing(receiver);
+        var biome = level.getBiome(pos).value();
+        // Temperature also covers modded cold biomes and snowy mountain variants such as Jagged Peaks.
+        return biome.getBaseTemperature() <= 0.3F || biome.coldEnoughToSnow(pos);
     }
 
     private static Opening sporadic(ServerLevel level, long now) {
@@ -186,16 +198,14 @@ public final class PropagationEffects {
                 Math.max(0, (end - now) / 1000), random.nextInt(25) == 0);
     }
 
-    private static Opening aurora(ServerLevel level, long now) {
-        long slot = Math.floorDiv(now, AURORA_SLOT_MS);
-        SplittableRandom random = random(level, slot, 0xA43012L);
-        boolean scheduled = random.nextInt(6) == 0;
-        long start = slot * AURORA_SLOT_MS + random.nextInt(8) * 60_000L;
-        long end = start + (5 + random.nextInt(11)) * 60_000L;
+    private static Opening aurora(ServerLevel level) {
+        long gameDay = Math.floorDiv(level.dayTime(), 24_000L);
+        SplittableRandom random = random(level, gameDay, 0xA43012L);
         int configured = configured(level, Kind.AURORA);
-        return new Opening(forced(level, Kind.AURORA) || scheduled && now >= start && now < end,
+        long remainingTicks = 23_000L - Math.floorMod(level.dayTime(), 24_000L);
+        return new Opening(forced(level, Kind.AURORA) || auroraNight(level),
                 configured == 0 ? 1 + random.nextInt(10) : configured,
-                Math.max(0, (end - now) / 1000), false);
+                Math.max(0, remainingTicks / 20), false);
     }
 
     private static Tropo tropo(ServerLevel level, long now) {

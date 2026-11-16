@@ -34,6 +34,8 @@ public class TechnisatScreen extends AbstractContainerScreen<Dx3Menu> {
     private Button pinButton;
     private Button seekDownButton;
     private Button seekUpButton;
+    private SyncDx3PlayerPayload cachedFmRds;
+    private int cachedFmFrequency = -1;
 
     public TechnisatScreen(Dx3Menu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -211,6 +213,12 @@ public class TechnisatScreen extends AbstractContainerScreen<Dx3Menu> {
     @Override protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
         SyncTechnisatStatusPayload state = menu.getTechnisatStatus();
         SyncDx3PlayerPayload info = menu.getPlayerInfo();
+        if (state != null && !state.dab() && !state.drm()
+                && cachedFmFrequency != state.frequencyKhz()) cachedFmRds = null;
+        if (state != null && !state.dab() && !state.drm() && info.active() && info.rds()) {
+            cachedFmRds = info;
+            cachedFmFrequency = state.frequencyKhz();
+        }
         g.drawString(font, "TechniSat", 18, 286, TEXT, false);
         g.drawString(font, state != null && state.muted() ? "M" : "VOL", 446, 275, DIM, false);
         g.drawString(font, state == null ? "RADIO" : state.dab() ? "DAB+" : state.drm() ? "DRM" : "FM", 216, 43, TEXT, false);
@@ -282,12 +290,14 @@ public class TechnisatScreen extends AbstractContainerScreen<Dx3Menu> {
 
     private void renderPlayer(GuiGraphics g, SyncDx3PlayerPayload info, SyncTechnisatStatusPayload state) {
         boolean dab = state.dab();
+        boolean cached = hasCachedFmRds(info, state);
+        SyncDx3PlayerPayload shownRds = cached ? cachedFmRds : info;
         String title = dab ? info.active() && !info.ps().isBlank() ? info.ps() : "DAB Radio"
                 : state.drm() ? info.active() && !info.longPs().isBlank() ? info.longPs()
                         : state.frequencyKhz() + " kHz"
-                : info.active() && !info.ps().isBlank() ? info.ps()
+                : (info.active() || cached) && !shownRds.ps().isBlank() ? shownRds.ps()
                         : String.format(Locale.ROOT, "%.2f MHz", state.frequencyKhz() / 1000.0);
-        g.drawString(font, fit(title, 244), 218, 70, 0xFFFFC329, false);
+        g.drawString(font, fit(title, 244), 218, 70, cached ? DIM : 0xFFFFC329, false);
         g.fill(217, 92, 285, 160, 0xFFFEFEFE);
         int[] logo = dab ? menu.getPlayerLogo() : null;
         if (logo == null && dab) {
@@ -301,17 +311,19 @@ public class TechnisatScreen extends AbstractContainerScreen<Dx3Menu> {
             g.drawCenteredString(font, dab ? "DAB+" : state.drm() ? "DRM" : "FM", 251, 120, BLUE);
             g.drawCenteredString(font, "◉", 251, 136, BLUE);
         }
-        String subtitle = info.active() ? info.rt() : "";
+        String subtitle = info.active() || cached ? shownRds.rt() : "";
         if (subtitle.isBlank()) subtitle = dab || state.drm() ? "No programme text" : "No RadioText";
         for (int i = 0; i < 3; i++) {
             int start = i * 30;
             if (start >= subtitle.length()) break;
             g.drawString(font, fit(subtitle.substring(start, Math.min(subtitle.length(), start + 30)), 172),
-                    293, 98 + i * 16, TEXT, false);
+                    293, 98 + i * 16, cached ? DIM : TEXT, false);
         }
-        if (!info.title().isBlank() && !info.artist().isBlank()) {
-            g.drawString(font, fit((dab ? "DLS+" : "RT+") + "  " + info.artist(), 247), 217, 151, TEXT, false);
-            g.drawString(font, fit("TITLE  " + info.title(), 247), 217, 165, TEXT, false);
+        if (!shownRds.title().isBlank() && !shownRds.artist().isBlank()) {
+            g.drawString(font, fit((dab ? "DLS+" : "RT+") + "  " + shownRds.artist(), 247),
+                    217, 151, cached ? DIM : TEXT, false);
+            g.drawString(font, fit("TITLE  " + shownRds.title(), 247), 217, 165,
+                    cached ? DIM : TEXT, false);
         }
         if (dab) {
             int selected = selectedIndex();
@@ -329,25 +341,33 @@ public class TechnisatScreen extends AbstractContainerScreen<Dx3Menu> {
     }
 
     private void renderInfo(GuiGraphics g, SyncDx3PlayerPayload info, SyncTechnisatStatusPayload state) {
+        boolean cached = hasCachedFmRds(info, state);
+        SyncDx3PlayerPayload shownRds = cached ? cachedFmRds : info;
         g.drawString(font, state.dab() ? "DAB+ INFORMATION" : state.drm() ? "DRM INFORMATION" : "FM INFORMATION",
                 220, 72, 0xFF69C9FF, false);
         String tuning = state.dab() ? DabChannel.byIndex(state.channelIndex()).label()
                 : state.drm() ? state.frequencyKhz() + " kHz"
                 : String.format(Locale.ROOT, "%.2f MHz", state.frequencyKhz() / 1000.0);
         g.drawString(font, "Tuning: " + tuning, 220, 95, TEXT, false);
-        g.drawString(font, "PTY: " + PtyNames.name(info.pty()), 220, 112, TEXT, false);
+        g.drawString(font, "PTY: " + PtyNames.name(shownRds.pty()), 220, 112, cached ? DIM : TEXT, false);
         g.drawString(font, "Signal: " + info.signalBars() + "/5", 220, 129, TEXT, false);
         if (state.dab() || state.drm()) {
             g.drawString(font, "Codec: " + fit(info.codec(), 190), 220, 146, TEXT, false);
             g.drawString(font, "Bitrate: " + info.bitrateKbps() + " kbps", 220, 163, TEXT, false);
-        } else g.drawString(font, info.active() && !info.ps().isBlank() ? "RDS: " + info.ps() : "RDS: unavailable",
-                220, 146, TEXT, false);
-        g.drawString(font, "LIC: " + fit(info.lic().isBlank() ? "—" : info.lic(), 160), 220,
-                state.dab() || state.drm() ? 180 : 163, TEXT, false);
+        } else g.drawString(font, (info.active() || cached) && !shownRds.ps().isBlank()
+                        ? (cached ? "RDS cached: " : "RDS: ") + shownRds.ps() : "RDS: unavailable",
+                220, 146, cached ? DIM : TEXT, false);
+        g.drawString(font, "LIC: " + fit(shownRds.lic().isBlank() ? "—" : shownRds.lic(), 160), 220,
+                state.dab() || state.drm() ? 180 : 163, cached ? DIM : TEXT, false);
         g.drawString(font, "INFO to return", 220, 199, DIM, false);
     }
 
     private String fit(String text, int pixels) { return font.plainSubstrByWidth(text, pixels); }
+
+    private boolean hasCachedFmRds(SyncDx3PlayerPayload info, SyncTechnisatStatusPayload state) {
+        return !state.dab() && !state.drm() && !info.rds() && cachedFmRds != null
+                && cachedFmFrequency == state.frequencyKhz();
+    }
 
     private static void drawLogo(GuiGraphics g, int[] pixels, int x, int y, int size) {
         int source = pixels.length == 64 * 64 ? 64 : pixels.length == 16 * 16 ? 16 : 0;

@@ -22,7 +22,7 @@ public class TransmitterBlockEntity extends BlockEntity {
     private static final int PS_MAX_CHARS = 512;
     private static final int AF_MAX_CHARS = 32767;
     private static final int STREAM_URL_MAX_CHARS = 1024;
-    private static final long DYNAMIC_PS_FRAME_INTERVAL_FRAMES = 24L; // 4s at 6 RDS frames/s
+    private static final long DYNAMIC_PS_FRAME_INTERVAL_FRAMES = 46L; // about 4s at 11.4 RDS groups/s
     private static final String KEY_FREQUENCY_KHZ = "FrequencyKhz";
     private static final String KEY_POWER_W = "PowerW";
     private static final String KEY_ANTENNA_POS = "AntennaPos";
@@ -270,7 +270,7 @@ public class TransmitterBlockEntity extends BlockEntity {
     }
 
     public String getCurrentPsFrame(long gameTime) {
-        return currentPsFrame(Math.max(0L, (gameTime * 6L) / 20L));
+        return currentPsFrame(com.radiomod.signal.RdsTiming.groupAtTick(gameTime));
     }
 
     public String getRdsOdaGroup() {
@@ -312,12 +312,14 @@ public class TransmitterBlockEntity extends BlockEntity {
 
     @Nullable
     public RdsFrameData getCurrentRdsFrame(int berPercent, long gameTime, String timeString) {
-        List<Integer> enabled = getEnabledGroupIndices();
-        if (enabled.isEmpty()) {
-            return null;
-        }
+        return getRdsFrameAtGroup(berPercent, com.radiomod.signal.RdsTiming.groupAtTick(gameTime),
+                gameTime, timeString);
+    }
 
-        long frame = Math.max(0L, (gameTime * 6L) / 20L);
+    /** Reads a specific emitted group, including groups between receiver sample ticks. */
+    public RdsFrameData getRdsFrameAtGroup(int berPercent, long frame, long gameTime, String timeString) {
+        List<Integer> enabled = getEnabledGroupIndices();
+        if (enabled.isEmpty()) return null;
         if (berPercent > 0) {
             int interval = Math.max(1, (int) Math.round((100.0 / berPercent) - 1.0));
             if ((frame % (interval + 1L)) == interval) {

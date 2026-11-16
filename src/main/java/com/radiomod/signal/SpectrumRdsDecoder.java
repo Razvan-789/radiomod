@@ -15,15 +15,17 @@ final class SpectrumRdsDecoder {
 
     static SyncSpectrumPayload.RdsReading sample(Player player, BlockPos pos,
             TransmitterBlockEntity tx, int frequencyKhz, double signalDbuv, double snrDb) {
-        if (pos == null || tx == null || !tx.isRdsEnabled()) {
+        Decoder decoder = DECODERS.computeIfAbsent(player, ignored -> new Decoder());
+        decoder.tune(frequencyKhz);
+        if (pos == null || tx == null) return decoder.reading(false, false, 100);
+        if (!tx.isRdsEnabled()) {
             DECODERS.remove(player);
             return SyncSpectrumPayload.RdsReading.EMPTY;
         }
         int ber = signalDbuv > -10 && snrDb > -5
                 ? Dx3Catalog.rdsBerPercent(signalDbuv, snrDb) : 100;
         String source = pos.asLong() + ":" + frequencyKhz;
-        return DECODERS.computeIfAbsent(player, ignored -> new Decoder())
-                .sample(tx, source, ber, player.level().getGameTime());
+        return decoder.sample(tx, source, ber, player.level().getGameTime());
     }
 
     static void clear(Player player) { DECODERS.remove(player); }
@@ -34,11 +36,24 @@ final class SpectrumRdsDecoder {
         private String source = "", targetPs = "", targetRt = "", pi = "", group = "";
         private int pty, psSegment, rtSegment;
         private boolean tp;
+        private int frequencyKhz = -1;
         private long lastFrame = -1, lastGoodFrame = -1;
+
+        private void tune(int frequency) {
+            if (frequency == frequencyKhz) return;
+            frequencyKhz = frequency;
+            source = "";
+            pi = group = targetPs = targetRt = "";
+            pty = psSegment = rtSegment = 0;
+            tp = false;
+            Arrays.fill(ps, '_');
+            Arrays.fill(rt, ' ');
+            lastFrame = lastGoodFrame = -1;
+        }
 
         private SyncSpectrumPayload.RdsReading sample(TransmitterBlockEntity tx,
                 String currentSource, int ber, long gameTime) {
-            long frame = Math.max(0, gameTime * 6 / 20);
+            long frame = RdsTiming.groupAtTick(gameTime);
             if (!currentSource.equals(source) || frame < lastFrame) {
                 source = currentSource;
                 pi = group = targetPs = targetRt = "";
@@ -49,13 +64,13 @@ final class SpectrumRdsDecoder {
                 lastFrame = frame - 1;
                 lastGoodFrame = -1;
             }
-            // The analyser receives samples every five ticks; examine the RDS frames between them.
+            // The analyser receives samples every five ticks; examine the groups between them.
             long first = Math.max(lastFrame + 1, frame - 11);
             double successChance = Math.clamp((100.0 - ber) / 100.0, 0, 1);
             for (long current = first; current <= frame; current++) {
                 if (random.nextDouble() >= successChance) continue;
-                long frameTick = (current * 20 + 5) / 6; // first game tick of this 6 Hz frame
-                RdsFrameData received = tx.getCurrentRdsFrame(0, frameTick, "");
+                long frameTick = RdsTiming.firstTickForGroup(current);
+                RdsFrameData received = tx.getRdsFrameAtGroup(0, current, frameTick, "");
                 if (received == null) continue;
                 lastGoodFrame = current;
                 pi = received.pi();
@@ -87,10 +102,14 @@ final class SpectrumRdsDecoder {
             }
             lastFrame = frame;
             boolean decoded = ber <= 98 && lastGoodFrame >= 0 && frame - lastGoodFrame <= 12;
-            return new SyncSpectrumPayload.RdsReading(true, decoded, ber,
-                    decoded ? pi : "", decoded && !targetPs.isEmpty() ? new String(ps).stripTrailing() : "",
-                    decoded ? new String(rt).stripTrailing() : "", decoded ? pty : 0,
-                    decoded ? group : "", decoded && tp);
+            return reading(true, decoded, ber);
+        }
+
+        private SyncSpectrumPayload.RdsReading reading(boolean present, boolean decoded, int ber) {
+            if (!present && pi.isBlank()) return SyncSpectrumPayload.RdsReading.EMPTY;
+            return new SyncSpectrumPayload.RdsReading(present, decoded, ber,
+                    pi, targetPs.isEmpty() ? "" : new String(ps).stripTrailing(),
+                    new String(rt).stripTrailing(), pty, group, tp);
         }
     }
 }

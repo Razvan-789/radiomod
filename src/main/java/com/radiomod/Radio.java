@@ -908,7 +908,8 @@ public class Radio {
                     : kind == com.radiomod.signal.PropagationEffects.Kind.TROPO ? 11 : 10;
             var command = Commands.literal(name).executes(context -> {
                 context.getSource().sendSuccess(() -> Component.literal(
-                        com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind)), false);
+                        com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind,
+                                context.getSource().getEntity() == null ? null : context.getSource().getPosition())), false);
                 return 1;
             });
             command.then(Commands.literal("rate").requires(source -> source.hasPermission(2))
@@ -920,7 +921,8 @@ public class Radio {
                         }
                         com.radiomod.signal.PropagationEffects.configure(context.getSource().getLevel(), kind, value);
                         context.getSource().sendSuccess(() -> Component.literal(
-                                com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind)), true);
+                                com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind,
+                                        context.getSource().getEntity() == null ? null : context.getSource().getPosition())), true);
                         return 1;
                     })));
             if (kind == com.radiomod.signal.PropagationEffects.Kind.SPORADIC
@@ -930,7 +932,8 @@ public class Radio {
                             boolean enabled = IntegerArgumentType.getInteger(context, "value") == 1;
                             com.radiomod.signal.PropagationEffects.setForced(context.getSource().getLevel(), kind, enabled);
                             context.getSource().sendSuccess(() -> Component.literal(
-                                    com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind)), true);
+                                    com.radiomod.signal.PropagationEffects.status(context.getSource().getLevel(), kind,
+                                            context.getSource().getEntity() == null ? null : context.getSource().getPosition())), true);
                             return 1;
                         })));
             }

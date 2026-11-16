@@ -51,6 +51,8 @@ public class Dx3Screen extends AbstractContainerScreen<Dx3Menu> {
     private Button sortButton;
     private Button linkButton;
     private int shownLinkMode = -1;
+    private SyncDx3PlayerPayload cachedFmRds;
+    private int cachedFmTuning = -1;
 
     public Dx3Screen(Dx3Menu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -413,6 +415,14 @@ public class Dx3Screen extends AbstractContainerScreen<Dx3Menu> {
             graphics.drawCenteredString(font, "Select a station from the list", WIDTH / 2, 148, DIM);
             return;
         }
+        if (!station.dab() && cachedFmTuning != station.tuning()) cachedFmRds = null;
+        if (!station.dab() && info.active() && info.rds()) {
+            cachedFmRds = info;
+            cachedFmTuning = station.tuning();
+        }
+        boolean staleFmRds = !station.dab() && !info.rds() && cachedFmRds != null
+                && cachedFmTuning == station.tuning();
+        SyncDx3PlayerPayload shownRds = staleFmRds ? cachedFmRds : info;
         graphics.fill(25, 79, 97, 151, 0xFF0D1921);
         if (station.dab() && menu.getPlayerLogo() != null) {
             drawLogo(graphics, menu.getPlayerLogo(), 29, 83, 1);
@@ -422,11 +432,11 @@ public class Dx3Screen extends AbstractContainerScreen<Dx3Menu> {
             graphics.fill(29, 83, 93, 147, station.dab() ? 0xFF43667B : 0xFF305B67);
             graphics.drawCenteredString(font, station.dab() ? "DAB" : "FM", 61, 111, TEXT);
         }
-        String name = info.active() && !info.longPs().isBlank() ? info.longPs()
-                : info.active() && !info.ps().isBlank() ? info.ps()
+        String name = (info.active() || staleFmRds) && !shownRds.longPs().isBlank() ? shownRds.longPs()
+                : (info.active() || staleFmRds) && !shownRds.ps().isBlank() ? shownRds.ps()
                 : station.dab() ? station.label()
                 : String.format(java.util.Locale.ROOT, "FM %.1f", station.tuning() / 1000.0);
-        graphics.drawString(font, fit(name, 300), 109, 84, TEXT, false);
+        graphics.drawString(font, fit(name, 300), 109, 84, staleFmRds ? DIM : TEXT, false);
         graphics.drawString(font, station.dab() ? fit("MUX: " + station.mux(), 300) : "FM station",
                 109, 104, ACCENT, false);
         String tuning = station.dab() ? DabChannel.byIndex(station.tuning()).label()
@@ -437,24 +447,27 @@ public class Dx3Screen extends AbstractContainerScreen<Dx3Menu> {
                     + info.bitrateKbps() + " kbps", 300), 109, 140, ACCENT, false);
         }
         graphics.drawString(font, "PTY", 26, 166, ACCENT, false);
-        graphics.drawString(font, PtyNames.name(info.pty()), 57, 166, TEXT, false);
+        graphics.drawString(font, PtyNames.name(shownRds.pty()), 57, 166, staleFmRds ? DIM : TEXT, false);
         graphics.drawString(font, fit("LIC: " + (info.lic().isBlank() ? "—" : info.lic()), 150),
                 260, 166, ACCENT, false);
         graphics.drawString(font, station.dab() ? "DLS" : "RT", 26, 188, ACCENT, false);
-        String rt = info.active() ? info.rt() : "";
+        String rt = info.active() || staleFmRds ? shownRds.rt() : "";
         if (rt.isBlank()) {
             graphics.drawString(font, "—", 57, 188, DIM, false);
         } else {
             List<FormattedCharSequence> lines = font.split(Component.literal(rt), 350);
-            int maxLines = info.title().isBlank() || info.artist().isBlank() ? 4 : 2;
+            int maxLines = shownRds.title().isBlank() || shownRds.artist().isBlank() ? 4 : 2;
             for (int index = 0; index < Math.min(maxLines, lines.size()); index++) {
-                graphics.drawString(font, lines.get(index), 57, 188 + index * 13, TEXT, false);
+                graphics.drawString(font, lines.get(index), 57, 188 + index * 13,
+                        staleFmRds ? DIM : TEXT, false);
             }
         }
-        if (!info.title().isBlank() && !info.artist().isBlank()) {
+        if (!shownRds.title().isBlank() && !shownRds.artist().isBlank()) {
             graphics.drawString(font, station.dab() ? "DLS+" : "RT+", 26, 224, ACCENT, false);
-            graphics.drawString(font, fit("ARTIST: " + info.artist(), 350), 57, 224, TEXT, false);
-            graphics.drawString(font, fit("TITLE: " + info.title(), 350), 57, 239, TEXT, false);
+            graphics.drawString(font, fit("ARTIST: " + shownRds.artist(), 350), 57, 224,
+                    staleFmRds ? DIM : TEXT, false);
+            graphics.drawString(font, fit("TITLE: " + shownRds.title(), 350), 57, 239,
+                    staleFmRds ? DIM : TEXT, false);
         }
     }
 

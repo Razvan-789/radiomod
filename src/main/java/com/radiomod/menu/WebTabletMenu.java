@@ -87,7 +87,7 @@ public class WebTabletMenu extends AbstractContainerMenu {
         propagationSnapshot = new SyncPropagationPayload(containerId, MeteorScatter.status(level),
                 PropagationEffects.status(level, PropagationEffects.Kind.SPORADIC),
                 PropagationEffects.status(level, PropagationEffects.Kind.TROPO),
-                PropagationEffects.status(level, PropagationEffects.Kind.AURORA));
+                PropagationEffects.status(level, PropagationEffects.Kind.AURORA, receiver.position()));
         PacketDistributor.sendToPlayer(receiver, propagationSnapshot);
     }
     private void send(ServerPlayer serverPlayer) {
